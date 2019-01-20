@@ -1,0 +1,9 @@
+https://arvrjourney.com/human-pose-estimation-using-openpose-with-tensorflow-part-1-7dd4ca5c802
+
+https://medium.com/pixel-wise/real-time-pose-estimation-in-webcam-using-openpose-python-2-3-opencv-91af0372c31c
+
+https://medium.com/brainjar/robust-real-time-pose-estimation-with-openpose-89ae39ee05ed
+
+https://www.learnopencv.com/multi-person-pose-estimation-in-opencv-using-openpose/
+
+https://github.com/CMU-Perceptual-Computing-Lab/openpose7
