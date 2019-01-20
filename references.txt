@@ -1,0 +1,2 @@
+OpenPose model repo : https://github.com/CMU-Perceptual-Computing-Lab/openpose
+Paper : https://arxiv.org/abs/1812.08008
