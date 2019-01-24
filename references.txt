@@ -1,2 +1,6 @@
 OpenPose model repo : https://github.com/CMU-Perceptual-Computing-Lab/openpose
 Paper : https://arxiv.org/abs/1812.08008
+
+
+added results from sample pretrained pytorch mode
+https://github.com/tensorboy/pytorch_Realtime_Multi-Person_Pose_Estimationl
