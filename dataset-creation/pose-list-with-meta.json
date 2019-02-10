@@ -908,7 +908,7 @@
     "english_name": "Tortoise Pose",
     "sanskrit_name": "Kurmasana",
     "pose_meta": [
-      "Forward bend",
+      "Forward Bend",
       "Seated"
     ],
     "difficulty": 3
@@ -955,5 +955,15 @@
       "Hip Opening"
     ],
     "difficulty": 2
+  },
+  {
+    "english_name": "Formidable Face/Chin Stand Pose",
+    "sanskrit_name": "Ganda Bherundasana",
+    "pose_meta": [
+      "Inversion",
+      "Backbends",
+      "Strengthening"
+    ],
+    "difficulty": 3
   }
 ]
