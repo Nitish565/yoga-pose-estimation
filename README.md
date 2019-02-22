@@ -2,6 +2,7 @@
 Model to classify yoga pose type and estimate joint positions of a person from an image
 
 https://dopelemon.me/yoga-poses.html
+
 Joint keypoint prediction in progress..
 
 To-do:
