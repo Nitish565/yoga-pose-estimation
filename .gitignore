@@ -5,3 +5,4 @@ dataset/
 classification-model/dataset/
 COCO/train2014
 COCO/annotations
+MPII/
