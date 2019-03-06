@@ -55,6 +55,7 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
 
 
 def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_type_to_idx=keypoint_type_to_idx, sigma=7):
+    img = np.array(img)
     h,w = img.shape[:2]
     heatmaps = np.zeros((len(keypoint_labels), h, w))
     HM_BINARY_IND = np.zeros(len(keypoint_labels))
@@ -67,6 +68,7 @@ def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_
     return heatmaps, HM_BINARY_IND
 
 def get_paf_masks(img, keypoints, joint_pairs=part_pairs, keypoint_type_to_idx=keypoint_type_to_idx, limb_width=5):
+    img = np.array(img)
     h,w = img.shape[:2]
     pafs = np.zeros((len(part_pairs)*2, h, w))
     PAF_BINARY_IND = np.zeros(len(part_pairs)*2)

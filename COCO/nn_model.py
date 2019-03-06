@@ -164,8 +164,8 @@ class Net(nn.Module):
             self.PAF_Stages.set_current_training_stage(1)
             self.Heatmap_Stages.freeze_all_stages()
 
-def set_to_inference(self):
-    self.in_training = False
+    def set_to_inference(self):
+        self.in_training = False
         self.PAF_Stages.set_to_inference()
         self.Heatmap_Stages.set_to_inference()
     
