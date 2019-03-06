@@ -8,13 +8,13 @@ Model to classify yoga pose type and estimate joint positions of a person from a
 
 
 Pose Estimation part:
+![alt text](http://cocodataset.org/images/keypoints-splash-big.png)
 - Get join estimation model, training params from OpenPose <b>(Done)</b>
 - OpenPose paper : https://arxiv.org/abs/1812.08008
 - Earlier paper : https://arxiv.org/abs/1611.08050
 
 - Download Microsoft's COCO dataset for labeled keypoints. (17 Joints and limb connections) <b>(Done)</b>
 - COCO : http://cocodataset.org/#download 
-![alt text](http://cocodataset.org/images/keypoints-splash-big.png)
 - Write code to calculate ground truth joint Heatmaps and PAF's (Part affinity fields) from labeled keypoints <b>(Done)</b>
 - Write Dataset class, custom transforms and vizualizations plots <b>(Done)</b>
 - Write the NN Model to be trained in stages, implement from original paper <b>(Done)</b>
