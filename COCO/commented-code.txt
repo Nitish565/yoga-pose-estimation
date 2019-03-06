@@ -1,0 +1,98 @@
+#import pylab
+#pylab.rcParams['figure.figsize'] = (8.0, 10.0)
+#from pycocotools.coco import COCO
+
+
+
+
+#q = Path('annotations/person_keypoints_train2014.json').open()
+#annotations_data = json.load(q)
+#82,783  images
+#185,316 annotations
+#{2: 7663,
+# 1: 17293,
+# 6: 1450,
+# 8: 1027,
+# 10: 869,
+# 5: 1959,
+# 11: 865,
+# 3: 4192,
+# 7: 1193,
+# 13: 956,
+# 14: 3268,
+# 4: 2757,
+# 12: 815,
+# 9: 858,
+# 15: 6,
+# 16: 1,
+# 18: 1,
+# 20: 1}
+
+'''
+    for ann in annotations_data['annotations']:
+    if 'segmentation' in ann:
+    del ann['segmentation']
+    if 'area' in ann:
+    del ann['area']
+    if 'bbox' in ann:
+    del ann['bbox']
+    if 'category_id' in ann:
+    del ann['category_id']
+    if ann['image_id'] not in im_id_to_keypoints:
+    im_id_to_keypoints[ann['image_id']] = []
+    
+    im_id_to_keypoints[ann['image_id']].append(ann.copy())
+    '''
+'''
+    counts = {}
+    no_keypoints = []
+    for im_id, ann in im_id_to_keypoints.items():
+    if(len(ann)==0):
+    no_keypoints.append(im_id)
+    
+    if len(ann) not in counts:
+    counts[len(ann)] = 1
+    else:
+    counts[len(ann)] += 1
+    '''
+'''counts = {2: 7663, 1: 17293, 6: 1450, 8: 1027, 10: 869, 5: 1959, 11: 865, 3: 4192, 7: 1193, 13: 956, 14: 3268, 4: 2757, 12: 815, 9: 858, 15: 6, 16: 1, 18: 1, 20: 1}'''
+
+'''
+    def show_img_annotations(coco_kps, im_id):
+    if(not im_id):
+    imgIds = coco_kps.getImgIds(catIds=[1]);
+    im_id = imgIds[np.random.randint(0,len(imgIds))]
+    
+    img = img_id_to_annotation[im_id]
+    print(img)
+    I = io.imread('train2014/'+img['file_name'])
+    plt.imshow(I); plt.axis('off')
+    ax = plt.gca()
+    anns = im_id_to_keypoints[im_id]
+    
+    for item in anns:
+    item['category_id'] = 1
+    
+    coco_kps.showAnns(anns)
+    
+    def plot_img(im_id):
+    img = coco_kps.loadImgs(im_id)[0]
+    I = io.imread(img['coco_url'])
+    plt.imshow(I); plt.axis('off')
+    
+    show_img_annotations(coco_kps, '')
+    '''
+
+#annFile = 'annotations/person_keypoints_train2014.json'
+#coco_kps=COCO(annFile)
+
+
+'''
+im_id = im_ids[np.random.randint(0, len(im_ids))]
+I = io.imread('train2014/'+img_id_to_image_info[im_id]['file_name'])
+anns = img_id_to_annotations[im_id]
+plt.imshow(I)
+keypoints = get_keypoints_from_annotations(anns)
+plot_heat_maps_from_annotations(I, keypoints)
+plot_paf_maps_from_annotations(I, keypoints)
+'''
