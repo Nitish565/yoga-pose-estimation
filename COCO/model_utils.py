@@ -84,3 +84,61 @@ def get_keypoints_from_annotations(anns):
         keypoints.append(list(zip(ann['keypoints'][::3], ann['keypoints'][1::3], ann['keypoints'][2::3])))
     keypoints = np.array(keypoints)
     return keypoints
+
+def freeze_all_layers(model):
+    for param in model.parameters():
+        param.requires_grad = False
+
+def unfreeze_all_layers(model):
+    for param in model.parameters():
+        param.requires_grad = True    
+
+def freeze_other_paf_stages(model, stg):
+    if(stg==1):
+        unfreeze_all_layers(model.Stage1)
+        freeze_all_layers(model.Stage2)
+        freeze_all_layers(model.Stage3)
+        freeze_all_layers(model.Stage4)
+    elif(stg==2):
+        freeze_all_layers(model.Stage1)
+        unfreeze_all_layers(model.Stage2)
+        freeze_all_layers(model.Stage3)
+        freeze_all_layers(model.Stage4)
+    elif(stg==3):
+        freeze_all_layers(model.Stage1)
+        freeze_all_layers(model.Stage2)
+        unfreeze_all_layers(model.Stage3)
+        freeze_all_layers(model.Stage4)
+    elif(stg==4):
+        freeze_all_layers(model.Stage1)
+        freeze_all_layers(model.Stage2)
+        freeze_all_layers(model.Stage3)
+        unfreeze_all_layers(model.Stage4)
+
+def unfreeze_all_paf_stages(model):
+    unfreeze_all_layers(model.Stage1)
+    unfreeze_all_layers(model.Stage2)
+    unfreeze_all_layers(model.Stage3)
+    unfreeze_all_layers(model.Stage4)
+
+def freeze_all_paf_stages(model):
+    freeze_all_layers(model.Stage1)
+    freeze_all_layers(model.Stage2)
+    freeze_all_layers(model.Stage3)
+    freeze_all_layers(model.Stage4)
+
+def freeze_other_hm_stages(model, stg):
+    if(stg==1):
+        unfreeze_all_layers(model.Stage1)
+        freeze_all_layers(model.Stage2)
+    elif(stg==2):
+        freeze_all_layers(model.Stage1)
+        unfreeze_all_layers(model.Stage2)
+
+def unfreeze_all_hm_stages(model):
+    unfreeze_all_layers(model.Stage1)
+    unfreeze_all_layers(model.Stage2)
+
+def freeze_all_hm_stages(model):
+    freeze_all_layers(model.Stage1)
+    freeze_all_layers(model.Stage2)
