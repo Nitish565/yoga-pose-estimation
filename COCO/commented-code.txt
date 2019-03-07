@@ -96,3 +96,11 @@ keypoints = get_keypoints_from_annotations(anns)
 plot_heat_maps_from_annotations(I, keypoints)
 plot_paf_maps_from_annotations(I, keypoints)
 '''
+
+#good imids 391568, 498986, 40830
+#ds length = 45,174
+
+103775, 383329
+#np.random.randint(0,45174)
+
+#ds idx: 32520, 15369, 20535 

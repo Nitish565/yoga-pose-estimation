@@ -47,7 +47,7 @@ class RandomFlipImgAndKeypoints(object):
         img = sample['image']
         keypoints = sample['keypoints']
         
-        if np.random.random() > 0.75:
+        if np.random.random() > 0.6:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w, h = img.size
             keypoints[:, :, 0][keypoints[:, :, 2]>0] = w - keypoints[:, :, 0][keypoints[:, :, 2]>0]
@@ -72,7 +72,7 @@ class ColorJitter(object):
         return { 'image' : img, 'keypoints': sample['keypoints'] }
 
 class RandomGrayscale(object):
-    def __init__(self, p=0.25):
+    def __init__(self, p=0.33):
         self.tfm = transforms.RandomGrayscale(p=p)
     
     def __call__(self, sample):
@@ -91,7 +91,7 @@ class RandomRotateImgAndKeypoints(object):
         return keypoints
     
     def __call__(self, sample):
-        if(np.random.random()>0.75):
+        if(np.random.random()>0.6):
             img = sample['image']
             keypoints = sample['keypoints'].copy()
             rand_deg = np.random.randint(-1*self.deg, self.deg+1)
@@ -102,9 +102,30 @@ class RandomRotateImgAndKeypoints(object):
         else:
             return sample
 
-class ImgAndKeypointsToTensor(object):
+class ToTensor(object):
     def __init__(self):
         self.ToTensor = transforms.ToTensor()
     
     def __call__(self, sample):
-        return { 'image' : self.ToTensor(sample['image']), 'keypoints' : torch.tensor(sample['keypoints'], dtype=torch.float) }
+        return { 'image' : self.ToTensor(sample['image']),
+                 'pafs' : torch.tensor(sample['pafs'], dtype=torch.float),
+                 'PAF_BINARY_IND' : torch.tensor(sample['PAF_BINARY_IND'], dtype=torch.uint8),
+                 'heatmaps' : torch.tensor(sample['heatmaps'], dtype=torch.float),
+                 'HM_BINARY_IND' : torch.tensor(sample['HM_BINARY_IND'], dtype=torch.uint8),
+                }
+
+class NormalizeImg(object):
+    def __init__(self, mean, std):
+        self.normalize = transforms.Normalize(mean, std)
+    
+    def __call__(self, sample):
+        sample['image'] = self.normalize(sample['image'])
+        return sample
+
+class UnNormalizeImgBatch(object):
+    def __init__(self, mean, std):
+        self.mean = mean.reshape((1,3,1,1))
+        self.std = std.reshape((1,3,1,1))
+    
+    def __call__(self, batch):
+        return (batch*self.std) + self.mean

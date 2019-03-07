@@ -1,6 +1,9 @@
 import numpy as np
 from PIL import Image
 from CONSTANTS import *
+import torch
+import torch.nn.functional as F
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def get_joint_positions(joint_type, keypoints, keypoint_type_to_idx):
     res = []
@@ -13,7 +16,7 @@ def get_joint_positions(joint_type, keypoints, keypoint_type_to_idx):
 def calculate_heatmap(img, joint_type, keypoints, keypoint_type_to_idx, sigma=7):
     # HxWx3 to WxHx3 (x,y,3)
     if(joint_type in SMALLER_HEATMAP_GROUP):
-        sigma = 0.75*sigma
+        sigma = 0.5*sigma
     
     fliped_img = img.transpose((1,0,2))
     points = get_joint_positions(joint_type, keypoints, keypoint_type_to_idx)
@@ -48,7 +51,7 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
         PAF_IND = PAF_IND or keypoints_detected>0
         
         if(keypoints_detected):
-            limb_length = np.linalg.norm(j2 - j1)
+            limb_length = np.linalg.norm(j2 - j1) or 1
             v = (j2 - j1)/limb_length
             v_perp = np.array([v[1], -v[0]])
             center_point = (j1 + j2)/2
@@ -157,3 +160,27 @@ def unfreeze_all_hm_stages(model):
 def freeze_all_hm_stages(model):
     freeze_all_layers(model.Stage1)
     freeze_all_layers(model.Stage2)
+
+def print_training_loss_summary(loss, total_steps, current_epoch, n_epochs, n_batches, print_every=10):
+    #prints loss at the start of the epoch, then every 10(print_every) steps taken by the optimizer
+    steps_this_epoch = (total_steps%n_batches)
+    
+    if(steps_this_epoch==1 or steps_this_epoch%print_every==0):
+        print ('Epoch [{}/{}], Iteration [{}/{}], Loss: {:.4f}'
+               .format(current_epoch, n_epochs, steps_this_epoch, n_batches, loss))
+
+def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds):
+    cumulative_paf_loss = 0
+    cumulative_hm_loss = 0
+    
+    for paf_stg in pred_pafs:
+        scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
+        stg_paf_loss = torch.dist(scaled_pafs[paf_inds], pafs_gt[paf_inds])
+        cumulative_paf_loss += stg_paf_loss
+
+    for hm_stg in pred_hms_stages:
+        scaled_hms = F.interpolate(hm_stg, 368, mode="bilinear", align_corners=True).to(device)
+        stg_hm_loss = torch.dist(scaled_hms[hm_inds], hms_gt[hm_inds])
+        cumulative_hm_loss += stg_hm_loss
+
+    return cumulative_paf_loss+cumulative_hm_loss

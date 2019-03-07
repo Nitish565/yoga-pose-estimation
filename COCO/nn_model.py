@@ -41,13 +41,14 @@ class Conv_Block(nn.Module):
                                 nn.ReLU(inplace=True)
                                 )
 
-def forward(self, x):
-    c1_out = self.C1(x)
-    c2_out = self.C2(c1_out)
-    c3_out = self.C3(c2_out)
-    return torch.cat((c1_out, c2_out, c3_out), dim=1)
+    def forward(self, x):
+        c1_out = self.C1(x)
+        c2_out = self.C2(c1_out)
+        c3_out = self.C3(c2_out)
+        return torch.cat((c1_out, c2_out, c3_out), dim=1)
 
-def get_stage_block(in_channels):
+
+def get_stage_block(in_channels, out_channels):
     return nn.Sequential(
                          Conv_Block(in_channels),
                          Conv_Block(128),
@@ -57,18 +58,16 @@ def get_stage_block(in_channels):
                          nn.Conv2d(128,128,1,1,0),
                          nn.BatchNorm2d(128),
                          nn.ReLU(inplace=True),
-                         nn.Conv2d(128,128,1,1,0),
-                         nn.BatchNorm2d(128),
-                         nn.ReLU(inplace=True)
+                         nn.Conv2d(128,out_channels,1,1,0)
                          )
 
 class PAF_Stages(nn.Module):
-    def __init__(self, in_channels=128, in_training=False):
+    def __init__(self, in_channels=128, paf_out_channels=38, in_training=False):
         super(PAF_Stages, self).__init__()
-        self.Stage1 = get_stage_block(in_channels)
-        self.Stage2 = get_stage_block(in_channels+128)
-        self.Stage3 = get_stage_block(in_channels+128)
-        self.Stage4 = get_stage_block(in_channels+128)
+        self.Stage1 = get_stage_block(in_channels, paf_out_channels)
+        self.Stage2 = get_stage_block(in_channels+paf_out_channels, paf_out_channels)
+        self.Stage3 = get_stage_block(in_channels+paf_out_channels, paf_out_channels)
+        self.Stage4 = get_stage_block(in_channels+paf_out_channels, paf_out_channels)
         self.in_training = in_training
         self.current_training_stage = -1
     
@@ -113,10 +112,10 @@ class PAF_Stages(nn.Module):
             return o4
 
 class Heatmap_Stages(nn.Module):
-    def __init__(self, in_channels=256, in_training=False):
+    def __init__(self, in_channels=128+38, hm_out_channels=17, in_training=False):
         super(Heatmap_Stages, self).__init__()
-        self.Stage1 = get_stage_block(in_channels)
-        self.Stage2 = get_stage_block(in_channels+128)
+        self.Stage1 = get_stage_block(in_channels, hm_out_channels)
+        self.Stage2 = get_stage_block(in_channels+hm_out_channels, hm_out_channels)
         self.in_training = in_training
         self.current_training_stage = -1
     
@@ -150,7 +149,7 @@ class Heatmap_Stages(nn.Module):
         else:
             o1 = self.Stage1(torch.cat((F.clone(), L.clone()), dim=1))
             o2 = self.Stage2(torch.cat((F.clone(), L.clone(), o1), dim=1))
-            return [o1,o2]
+            return o2
 
 class Net(nn.Module):
     def __init__(self, in_training=False):
