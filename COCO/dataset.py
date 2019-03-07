@@ -21,7 +21,6 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
     
     def __getitem__(self, index):
         im_id = self.im_ids[index]
-        print(im_id)
         img = Image.open(self.image_dir+self.img_id_to_image_info[im_id]['file_name'])
         annotations = self.img_id_to_annotations[im_id]
         keypoints = model_utils.get_keypoints_from_annotations(annotations)
@@ -32,7 +31,7 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
         
         heatmaps, HM_BINARY_IND = self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
         pafs, PAF_BINARY_IND = self.get_paf_masks(img, keypoints, limb_width=self.limb_width)
-        return (img, heatmaps, pafs, HM_BINARY_IND, PAF_BINARY_IND, keypoints)
+        return (img, heatmaps, pafs, HM_BINARY_IND, PAF_BINARY_IND)
     
     def __len__(self):
         return self.len

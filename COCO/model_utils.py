@@ -12,6 +12,9 @@ def get_joint_positions(joint_type, keypoints, keypoint_type_to_idx):
 
 def calculate_heatmap(img, joint_type, keypoints, keypoint_type_to_idx, sigma=7):
     # HxWx3 to WxHx3 (x,y,3)
+    if(joint_type in SMALLER_HEATMAP_GROUP):
+        sigma = 0.75*sigma
+    
     fliped_img = img.transpose((1,0,2))
     points = get_joint_positions(joint_type, keypoints, keypoint_type_to_idx)
     KEYPOINT_EXISTS = (len(points)>0)
@@ -33,9 +36,16 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
     mask = np.zeros((ncols_x, nrows_y))               #in x,y order
     col, row = np.ogrid[:ncols_x, :nrows_y]
     
-    for item in keypoints:
+    paf_p_x = np.zeros((len(keypoints), ncols_x, nrows_y))
+    paf_p_y = np.zeros((len(keypoints), ncols_x, nrows_y))
+    NON_ZERO_VEC_COUNT = np.zeros((2, ncols_x, nrows_y))
+    PAF_IND = False
+    final_paf_map = np.zeros((2, ncols_x, nrows_y))
+    
+    for i, item in enumerate(keypoints):
         j1, j2 =  item[j1_idx][:2], item[j2_idx][:2]
         keypoints_detected = item[j1_idx][2] and item[j2_idx][2]
+        PAF_IND = PAF_IND or keypoints_detected>0
         
         if(keypoints_detected):
             limb_length = np.linalg.norm(j2 - j1)
@@ -45,13 +55,16 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
             
             cond1 = np.abs(np.dot(v, np.array([col, row]) - center_point))<= limb_length/2
             cond2 = np.abs(np.dot(v_perp, np.array([col, row]) - j1))<=limb_width
-            mask = np.maximum(mask, np.logical_and(cond1, cond2))
-        else:
-            v = np.array([0,0])
-    #return mask
-    paf_map = np.zeros((2, ncols_x, nrows_y))
-    paf_map[0], paf_map[1] = np.copy(mask)*v[0], np.copy(mask)*v[1]
-    return paf_map, keypoints_detected>0
+            
+            paf_p_x[i], paf_p_y[i] = np.logical_and(cond1, cond2)*v[0], np.logical_and(cond1, cond2)*v[1]
+            if(v[0]):
+                NON_ZERO_VEC_COUNT[0][np.logical_and(cond1, cond2)] +=1
+            if(v[1]):
+                NON_ZERO_VEC_COUNT[1][np.logical_and(cond1, cond2)] +=1
+
+    NON_ZERO_VEC_COUNT[NON_ZERO_VEC_COUNT==0] = 1
+    final_paf_map[0], final_paf_map[1] = (paf_p_x.sum(axis=0)/NON_ZERO_VEC_COUNT[0]), (paf_p_y.sum(axis=0)/NON_ZERO_VEC_COUNT[1])
+    return final_paf_map, PAF_IND
 
 
 def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_type_to_idx=keypoint_type_to_idx, sigma=7):
