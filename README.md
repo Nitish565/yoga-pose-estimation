@@ -24,4 +24,11 @@ To-do:
 - Train model 
 - Write the inference logic, nms to connect joints from pafs at test time to get final result
 
+Sample Training Image:
+![alt text](https://github.com/DhruvJawalkar/yoga-pose-estimation/blob/master/COCO/sample-trn-img.png)
 
+PAFs:
+![alt text](https://github.com/DhruvJawalkar/yoga-pose-estimation/blob/master/COCO/trn-img-paf-vectors.png)
+
+Heatmaps:
+![alt text](https://github.com/DhruvJawalkar/yoga-pose-estimation/blob/master/COCO/trn-img-heatmaps.png)
