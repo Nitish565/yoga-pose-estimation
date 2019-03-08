@@ -13,7 +13,7 @@ Pose Estimation part:
 - OpenPose paper : https://arxiv.org/abs/1812.08008
 - Earlier paper : https://arxiv.org/abs/1611.08050
 
-- Download Microsoft's COCO dataset for labeled keypoints. (17 Joints and limb connections) <b>(Done)</b>
+- Download Microsoft's COCO dataset for labeled keypoints. (17 Joints and 38 limb connections) <b>(Done)</b>
 - COCO : http://cocodataset.org/#download 
 - Write code to calculate ground truth joint Heatmaps and PAF's (Part affinity fields) from labeled keypoints <b>(Done)</b>
 - Write Dataset class, custom transforms and vizualizations plots <b>(Done)</b>
