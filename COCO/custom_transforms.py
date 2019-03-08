@@ -74,9 +74,13 @@ class ColorJitter(object):
 class RandomGrayscale(object):
     def __init__(self, p=0.33):
         self.tfm = transforms.RandomGrayscale(p=p)
+        self.gs = transforms.Grayscale(num_output_channels=3)
     
     def __call__(self, sample):
         img = self.tfm(sample['image'])
+        if(len(img.getbands())<3):
+            img = self.gs(img)
+        
         return { 'image' : img, 'keypoints': sample['keypoints'] }
 
 class RandomRotateImgAndKeypoints(object):

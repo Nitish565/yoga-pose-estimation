@@ -4,6 +4,21 @@ from CONSTANTS import *
 import torch
 import torch.nn.functional as F
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+import time
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % \
+                  (method.__name__, (te - ts)*1000))
+        return result
+    return timed
 
 def get_joint_positions(joint_type, keypoints, keypoint_type_to_idx):
     res = []
@@ -69,7 +84,7 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
     final_paf_map[0], final_paf_map[1] = (paf_p_x.sum(axis=0)/NON_ZERO_VEC_COUNT[0]), (paf_p_y.sum(axis=0)/NON_ZERO_VEC_COUNT[1])
     return final_paf_map, PAF_IND
 
-
+@timeit
 def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_type_to_idx=keypoint_type_to_idx, sigma=7):
     img = np.array(img)
     h,w = img.shape[:2]
@@ -83,6 +98,7 @@ def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_
         heatmaps[i] = mask
     return heatmaps, HM_BINARY_IND
 
+@timeit
 def get_paf_masks(img, keypoints, joint_pairs=part_pairs, keypoint_type_to_idx=keypoint_type_to_idx, limb_width=5):
     img = np.array(img)
     h,w = img.shape[:2]
@@ -173,7 +189,7 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
     cumulative_paf_loss = 0
     cumulative_hm_loss = 0
     
-    for paf_stg in pred_pafs:
+    for paf_stg in pred_pafs_stages:
         scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_paf_loss = torch.dist(scaled_pafs[paf_inds], pafs_gt[paf_inds])
         cumulative_paf_loss += stg_paf_loss
@@ -184,3 +200,5 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
         cumulative_hm_loss += stg_hm_loss
 
     return cumulative_paf_loss+cumulative_hm_loss
+
+
