@@ -45,10 +45,9 @@ def calculate_heatmap(img, joint_type, keypoints, keypoint_type_to_idx, sigma=7)
 
     return mask, KEYPOINT_EXISTS #w,h (x,y)
 
-def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_width=5):
-    # HxWx3 to WxHx3 (x,y,3)
-    fliped_img = img.transpose((1,0,2))
-    j1_idx, j2_idx = keypoint_type_to_idx[joint_pair[0]], keypoint_type_to_idx[joint_pair[1]]
+def calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width=5):
+    #(img) HxWx3 to (fliped_img) WxHx3 (x,y,3)
+    j1_idx, j2_idx = joint_pair[0], joint_pair[1]
     
     ncols_x, nrows_y  = fliped_img.shape[:2]
     mask = np.zeros((ncols_x, nrows_y))               #in x,y order
@@ -66,25 +65,26 @@ def calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_wi
         PAF_IND = PAF_IND or keypoints_detected>0
         
         if(keypoints_detected):
-            limb_length = np.linalg.norm(j2 - j1) or 1
-            v = (j2 - j1)/limb_length
-            v_perp = np.array([v[1], -v[0]])
-            center_point = (j1 + j2)/2
-            
-            cond1 = np.abs(np.dot(v, np.array([col, row]) - center_point))<= limb_length/2
-            cond2 = np.abs(np.dot(v_perp, np.array([col, row]) - j1))<=limb_width
-            
-            paf_p_x[i], paf_p_y[i] = np.logical_and(cond1, cond2)*v[0], np.logical_and(cond1, cond2)*v[1]
-            if(v[0]):
-                NON_ZERO_VEC_COUNT[0][np.logical_and(cond1, cond2)] +=1
-            if(v[1]):
-                NON_ZERO_VEC_COUNT[1][np.logical_and(cond1, cond2)] +=1
+            limb_length = np.linalg.norm(j2 - j1)
+            if(limb_length>1e-2):
+                v = (j2 - j1)/limb_length
+                v_perp = np.array([v[1], -v[0]])
+                center_point = (j1 + j2)/2
+                
+                cond1 = np.abs(np.dot(v, np.array([col, row]) - center_point))<= limb_length/2
+                cond2 = np.abs(np.dot(v_perp, np.array([col, row]) - j1))<=limb_width
+                mask = np.logical_and(cond1, cond2)
+                paf_p_x[i], paf_p_y[i] = mask*v[0], mask*v[1]
+                if(v[0]):
+                    NON_ZERO_VEC_COUNT[0][mask] +=1
+                if(v[1]):
+                    NON_ZERO_VEC_COUNT[1][mask] +=1
 
     NON_ZERO_VEC_COUNT[NON_ZERO_VEC_COUNT==0] = 1
     final_paf_map[0], final_paf_map[1] = (paf_p_x.sum(axis=0)/NON_ZERO_VEC_COUNT[0]), (paf_p_y.sum(axis=0)/NON_ZERO_VEC_COUNT[1])
     return final_paf_map, PAF_IND
 
-@timeit
+#@timeit
 def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_type_to_idx=keypoint_type_to_idx, sigma=7):
     img = np.array(img)
     h,w = img.shape[:2]
@@ -98,19 +98,21 @@ def get_heatmap_masks(img, keypoints, keypoint_labels=keypoint_labels, keypoint_
         heatmaps[i] = mask
     return heatmaps, HM_BINARY_IND
 
-@timeit
-def get_paf_masks(img, keypoints, joint_pairs=part_pairs, keypoint_type_to_idx=keypoint_type_to_idx, limb_width=5):
+#@timeit
+def get_paf_masks(img, keypoints, part_pairs=SKELETON, limb_width=5):
     img = np.array(img)
     h,w = img.shape[:2]
     pafs = np.zeros((len(part_pairs)*2, h, w))
     PAF_BINARY_IND = np.zeros(len(part_pairs)*2)
+    fliped_img = img.transpose((1,0,2))
     
     for i, joint_pair in enumerate(part_pairs):
-        mask, PAF_IS_LABELED = calculate_paf_mask(img, joint_pair, keypoints, keypoint_type_to_idx, limb_width)
+        mask, PAF_IS_LABELED = calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width)
         PAF_BINARY_IND[2*i], PAF_BINARY_IND[(2*i)+1]  = int(PAF_IS_LABELED), int(PAF_IS_LABELED)
         mask = mask.transpose((0,2,1))
         pafs[2*i], pafs[(2*i) +1] = mask[0], mask[1]   #x component, y component of v
     return pafs, PAF_BINARY_IND
+
 
 def get_keypoints_from_annotations(anns):
     keypoints = []
@@ -200,5 +202,3 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
         cumulative_hm_loss += stg_hm_loss
 
     return cumulative_paf_loss+cumulative_hm_loss
-
-
