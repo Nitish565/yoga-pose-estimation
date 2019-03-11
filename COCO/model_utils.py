@@ -32,7 +32,7 @@ def calculate_heatmap(fliped_img, kp_id, keypoints, sigma=7):
     
     for point in points:
         mask = np.maximum(mask, np.exp(-np.linalg.norm(np.array([col, row]) - point)**2 / sigma**2))
-
+    mask[mask<1e-4] = 0
     return mask, KEYPOINT_EXISTS #w,h (x,y)
 
 def calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width=5):
@@ -74,11 +74,11 @@ def calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width=5):
     final_paf_map[0], final_paf_map[1] = (paf_p_x.sum(axis=0)/NON_ZERO_VEC_COUNT[0]), (paf_p_y.sum(axis=0)/NON_ZERO_VEC_COUNT[1])
     return final_paf_map, PAF_IND
 
-@timeit
+#@timeit
 def get_heatmap_masks(img, keypoints, kp_ids = KEYPOINT_ORDER, sigma=7):
     img = np.array(img)
     h,w = img.shape[:2]
-    heatmaps = np.zeros((len(kp_ids), h, w))
+    heatmaps = np.zeros((len(kp_ids)+1, h, w))
     HM_BINARY_IND = np.zeros(len(kp_ids))
     fliped_img = img.transpose((1,0,2))
     
@@ -87,9 +87,10 @@ def get_heatmap_masks(img, keypoints, kp_ids = KEYPOINT_ORDER, sigma=7):
         HM_BINARY_IND[i] = int(HM_IS_LABELED)
         mask = mask.transpose()
         heatmaps[i] = mask
+    heatmaps[len(kp_ids)] = np.ones((h,w)) - np.sum(heatmaps, axis=0)
     return heatmaps, HM_BINARY_IND
 
-@timeit
+#@timeit
 def get_paf_masks(img, keypoints, part_pairs=SKELETON, limb_width=5):
     img = np.array(img)
     h,w = img.shape[:2]

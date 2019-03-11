@@ -43,6 +43,12 @@ def plot_heatmaps(img, masks, idx_to_keypoint_type=idx_to_keypoint_type, figsize
             ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
             ax.imshow(img)
             ax.imshow(masks[i], 'jet', interpolation='none', alpha=0.5)
+        if(i==17):
+            joint_type = "background"
+            ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
+            ax.imshow(img)
+            ax.imshow(masks[i], 'jet', interpolation='none', alpha=0.5)
+
     plt.tight_layout()
 
 def plot_pafs(img, pafs, joint_pairs=part_pairs, figsize=(16,12)):
