@@ -112,7 +112,7 @@ class PAF_Stages(nn.Module):
             return o4
 
 class Heatmap_Stages(nn.Module):
-    def __init__(self, in_channels=128+38, hm_out_channels=17, in_training=False):
+    def __init__(self, in_channels=128+38, hm_out_channels=17+1, in_training=False):
         super(Heatmap_Stages, self).__init__()
         self.Stage1 = get_stage_block(in_channels, hm_out_channels)
         self.Stage2 = get_stage_block(in_channels+hm_out_channels, hm_out_channels)
@@ -201,11 +201,14 @@ class Net(nn.Module):
         image_features = self.F(img)
         if(self.in_training):
             pafs_op = self.PAF_Stages(image_features)
-            heatmaps_op = []
-            if(self.train_heatmaps):
-                heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
+            pafs_op[torch.abs(pafs_op)<1e-1] = 0
+            #heatmaps_op = []
+            #if(self.train_heatmaps):
+            #    heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
+            heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
             return pafs_op, heatmaps_op
         else:
             pafs = self.PAF_Stages(image_features)
+            pafs[torch.abs(pafs)<1e-1] = 0
             heatmaps = self.Heatmap_Stages(image_features, pafs)
             return pafs, heatmaps

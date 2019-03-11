@@ -79,7 +79,7 @@ def get_heatmap_masks(img, keypoints, kp_ids = KEYPOINT_ORDER, sigma=7):
     img = np.array(img)
     h,w = img.shape[:2]
     heatmaps = np.zeros((len(kp_ids)+1, h, w))
-    HM_BINARY_IND = np.zeros(len(kp_ids))
+    HM_BINARY_IND = np.zeros(len(kp_ids)+1)
     fliped_img = img.transpose((1,0,2))
     
     for i, kp_id in enumerate(kp_ids):
@@ -88,6 +88,7 @@ def get_heatmap_masks(img, keypoints, kp_ids = KEYPOINT_ORDER, sigma=7):
         mask = mask.transpose()
         heatmaps[i] = mask
     heatmaps[len(kp_ids)] = np.ones((h,w)) - np.sum(heatmaps, axis=0)
+    HM_BINARY_IND[len(kp_ids)] = 1
     return heatmaps, HM_BINARY_IND
 
 #@timeit
@@ -182,12 +183,12 @@ def print_training_loss_summary(loss, total_steps, current_epoch, n_epochs, n_ba
 def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds):
     cumulative_paf_loss = 0
     cumulative_hm_loss = 0
-    
+    '''
     for paf_stg in pred_pafs_stages:
         scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_paf_loss = torch.dist(scaled_pafs[paf_inds], pafs_gt[paf_inds])
         cumulative_paf_loss += stg_paf_loss
-
+    '''
     for hm_stg in pred_hms_stages:
         scaled_hms = F.interpolate(hm_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_hm_loss = torch.dist(scaled_hms[hm_inds], hms_gt[hm_inds])
