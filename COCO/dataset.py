@@ -33,7 +33,7 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
             tfmd_sample = self.tfms({"image":img, "keypoints":keypoints})
             img, keypoints = tfmd_sample["image"], tfmd_sample["keypoints"]
         
-        heatmaps, HM_BINARY_IND = [],[]#self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
+        heatmaps, HM_BINARY_IND = self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
         pafs, PAF_BINARY_IND = self.get_paf_masks(img, keypoints, limb_width=self.limb_width)
         
         if self.tensor_tfms:#~23ms
