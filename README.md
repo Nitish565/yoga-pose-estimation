@@ -18,11 +18,14 @@ Pose Estimation part:
 - Write code to calculate ground truth joint Heatmaps and PAF's (Part affinity fields) from labeled keypoints <b>(Done)</b>
 - Write Dataset class, custom transforms and vizualizations plots <b>(Done)</b>
 - Write the NN Model to be trained in stages, implement from original paper <b>(Done)</b>
+- Write Loss calculation part <b>(Done)</b>
+- Train model (PAF Stages 1-4) <b>(Done)</b>
+
+In Progress:
+- Train model (Heatmaps Stages 1-2) 
 
 To-do:
-- Write Loss calculation part
-- Train model 
-- Write the inference logic, nms to connect joints from pafs at test time to get final result
+- Write the inference logic, nms to connect joints from prdicted pafs, heatmaps. 
 
 Sample Training Image:
 ![alt text](https://github.com/DhruvJawalkar/yoga-pose-estimation/blob/master/COCO/sample-trn-img.png)
