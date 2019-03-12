@@ -31,19 +31,20 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
         
         if self.tfms:#~5-8ms with minimal tfms, ~20ms if all included
             tfmd_sample = self.tfms({"image":img, "keypoints":keypoints})
-            img, keypoints = tfmd_sample["image"], tfmd_sample["keypoints"]
+            img, image_46x46, keypoints = tfmd_sample["image"], tfmd_sample["image_46x46"], tfmd_sample["keypoints"]
         
-        heatmaps, HM_BINARY_IND = self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
-        pafs, PAF_BINARY_IND = [],[]#self.get_paf_masks(img, keypoints, limb_width=self.limb_width)
+        heatmaps, HM_BINARY_IND = [],[]#self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
+        pafs, PAF_BINARY_IND = self.get_paf_masks(img, keypoints, limb_width=self.limb_width)
         
         if self.tensor_tfms:#~23ms
-            res = self.tensor_tfms({"image":img, "pafs":pafs, "PAF_BINARY_IND":PAF_BINARY_IND, "heatmaps":heatmaps, "HM_BINARY_IND":HM_BINARY_IND})
+            res = self.tensor_tfms({"image":img, "image_46x46": image_46x46, "pafs":pafs, "PAF_BINARY_IND":PAF_BINARY_IND, "heatmaps":heatmaps, "HM_BINARY_IND":HM_BINARY_IND})
             img = res["image"]
+            image_46x46 = res["image_46x46"]
             pafs = res["pafs"]
             PAF_BINARY_IND = res["PAF_BINARY_IND"]
             heatmaps = res["heatmaps"]
             HM_BINARY_IND = res["HM_BINARY_IND"]
-        return (img, pafs, PAF_BINARY_IND, heatmaps, HM_BINARY_IND)
+        return (img, image_46x46, pafs, PAF_BINARY_IND, heatmaps, HM_BINARY_IND)
     
     def __len__(self):
         return self.len

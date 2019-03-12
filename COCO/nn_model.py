@@ -88,27 +88,27 @@ class PAF_Stages(nn.Module):
     def set_to_inference(self):
         self.in_training = False
 
-    def forward(self, F):
+    def forward(self, im_46x46, F):
         if(self.in_training):
             res = []
             if(self.current_training_stage>=1):
-                o1 = self.Stage1(F.clone())
+                o1 = self.Stage1(torch.cat((im_46x46.clone(), F.clone()), dim=1))
                 res.append(o1)
             if(self.current_training_stage>=2):
-                o2 = self.Stage2(torch.cat((F.clone(), o1), dim=1))
+                o2 = self.Stage2(torch.cat((im_46x46.clone(), F.clone(), o1), dim=1))
                 res.append(o2)
             if(self.current_training_stage>=3):
-                o3 = self.Stage3(torch.cat((F.clone(), o2), dim=1))
+                o3 = self.Stage3(torch.cat((im_46x46.clone(), F.clone(), o2), dim=1))
                 res.append(o3)
             if(self.current_training_stage>=4):
-                o4 = self.Stage4(torch.cat((F.clone(), o3), dim=1))
+                o4 = self.Stage4(torch.cat((im_46x46.clone(), F.clone(), o3), dim=1))
                 res.append(o4)
             return res
         else:
-            o1 = self.Stage1(F.clone())
-            o2 = self.Stage2(torch.cat((F.clone(), o1), dim=1))
-            o3 = self.Stage3(torch.cat((F.clone(), o2), dim=1))
-            o4 = self.Stage4(torch.cat((F.clone(), o3), dim=1))
+            o1 = self.Stage1(torch.cat((im_46x46.clone(), F.clone()), dim=1))
+            o2 = self.Stage2(torch.cat((im_46x46.clone(), F.clone(), o1), dim=1))
+            o3 = self.Stage3(torch.cat((im_46x46.clone(), F.clone(), o2), dim=1))
+            o4 = self.Stage4(torch.cat((im_46x46.clone(), F.clone(), o3), dim=1))
             return o4
 
 class Heatmap_Stages(nn.Module):
@@ -136,19 +136,19 @@ class Heatmap_Stages(nn.Module):
     def set_to_inference(self):
         self.in_training = False
     
-    def forward(self, F, L):
+    def forward(self, im_46x46, F, L):
         if(self.in_training):
             res = []
             if(self.current_training_stage>=1):
-                o1 = self.Stage1(torch.cat((F.clone(), L.clone()), dim=1))
+                o1 = self.Stage1(torch.cat((im_46x46.clone(), F.clone(), L.clone()), dim=1))
                 res.append(o1)
             if(self.current_training_stage>=2):
-                o2 = self.Stage2(torch.cat((F.clone(), L.clone(), o1), dim=1))
+                o2 = self.Stage2(torch.cat((im_46x46.clone(), F.clone(), L.clone(), o1), dim=1))
                 res.append(o2)
             return res
         else:
-            o1 = self.Stage1(torch.cat((F.clone(), L.clone()), dim=1))
-            o2 = self.Stage2(torch.cat((F.clone(), L.clone(), o1), dim=1))
+            o1 = self.Stage1(torch.cat((im_46x46.clone(), F.clone(), L.clone()), dim=1))
+            o2 = self.Stage2(torch.cat((im_46x46.clone(), F.clone(), L.clone(), o1), dim=1))
             return o2
 
 class Net(nn.Module):
@@ -197,18 +197,16 @@ class Net(nn.Module):
     def set_train_heatmaps(flag):
         self.train_heatmaps = flag
     
-    def forward(self, img):
+    def forward(self, img, im_46x46):
         image_features = self.F(img)
         if(self.in_training):
-            pafs_op = self.PAF_Stages(image_features)
-            pafs_op[torch.abs(pafs_op)<1e-1] = 0
-            #heatmaps_op = []
-            #if(self.train_heatmaps):
-            #    heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
-            heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
+            pafs_op = self.PAF_Stages(im_46x46, image_features)
+            heatmaps_op = []
+            if(self.train_heatmaps):
+                heatmaps_op = self.Heatmap_Stages(im_46x46, image_features, pafs_op)
+            #heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
             return pafs_op, heatmaps_op
         else:
-            pafs = self.PAF_Stages(image_features)
-            pafs[torch.abs(pafs)<1e-1] = 0
-            heatmaps = self.Heatmap_Stages(image_features, pafs)
+            pafs = self.PAF_Stages(im_46x46, image_features)
+            heatmaps = self.Heatmap_Stages(im_46x46, image_features, pafs)
             return pafs, heatmaps
