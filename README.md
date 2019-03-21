@@ -20,11 +20,9 @@ Pose Estimation part:
 - Write the NN Model to be trained in stages, implement from original paper <b>(Done)</b>
 - Write Loss calculation part <b>(Done)</b>
 - Train model (PAF Stages 1-4) <b>(Done)</b>
+- Train model (Heatmaps Stages 1-2) <b>(Done)</b>
 
 In Progress:
-- Train model (Heatmaps Stages 1-2) 
-
-To-do:
 - Write the inference logic, nms to connect joints from prdicted pafs, heatmaps. 
 
 Sample Training Image:
