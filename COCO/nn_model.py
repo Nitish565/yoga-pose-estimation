@@ -12,8 +12,8 @@ class F(nn.Module):
                                               nn.Conv2d(512, 256, 3, 1, 1),
                                               nn.BatchNorm2d(256),
                                               nn.ReLU(inplace=True),
-                                              nn.Conv2d(256, 128, 3, 1, 1),
-                                              nn.BatchNorm2d(128),
+                                              nn.Conv2d(256, 125, 3, 1, 1),
+                                              nn.BatchNorm2d(125),
                                               nn.ReLU(inplace=True)
                                               )
         model_utils.freeze_all_layers(self.vgg)
