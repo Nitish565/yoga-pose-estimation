@@ -3,8 +3,8 @@ Model to classify yoga pose type and estimate joint positions of a person from a
 
 - Collect and clean image dataset of poses(107 asanas) <b>(Done)</b>
 - Classifier model <b>(Done)</b>
-- DS and classifier at: https://dopelemon.me/yoga-poses.html
-![alt text](https://dopelemon.me/images/yoga-poses/pose-sample.png)
+- DS, pose classifier + joint estimation model at: https://dopelemon.me/yoga-poses.html
+![alt text](https://github.com/DhruvJawalkar/blog/blob/master/app/results/yoga-pose/res-7100780243.png)
 
 
 Pose Estimation part:
