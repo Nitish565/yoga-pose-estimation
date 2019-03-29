@@ -182,7 +182,7 @@ def print_training_loss_summary(loss, total_steps, current_epoch, n_epochs, n_ba
 def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds):
     cumulative_paf_loss = 0
     cumulative_hm_loss = 0
-    
+    '''
     for paf_stg in pred_pafs_stages:
         scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_paf_loss = torch.dist(scaled_pafs[paf_inds], pafs_gt[paf_inds])
@@ -192,5 +192,5 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
         scaled_hms = F.interpolate(hm_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_hm_loss = torch.dist(scaled_hms[hm_inds], hms_gt[hm_inds])
         cumulative_hm_loss += stg_hm_loss
-    '''
+   
     return cumulative_paf_loss+cumulative_hm_loss

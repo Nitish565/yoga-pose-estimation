@@ -82,7 +82,7 @@ class RandomGrayscale(object):
         img = self.tfm(sample['image'])
         if(len(img.getbands())<3):
             img = self.gs(img)
-        
+            sample['image_46x46'] = self.gs(sample['image_46x46'])	
         return { 'image' : img, 'image_46x46' : sample['image_46x46'], 'keypoints': sample['keypoints'] }
 
 class RandomRotateImgAndKeypoints(object):

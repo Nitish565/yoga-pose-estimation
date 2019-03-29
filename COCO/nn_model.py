@@ -201,10 +201,10 @@ class Net(nn.Module):
         image_features = self.F(img)
         if(self.in_training):
             pafs_op = self.PAF_Stages(im_46x46, image_features)
-            heatmaps_op = []
-            if(self.train_heatmaps):
-                heatmaps_op = self.Heatmap_Stages(im_46x46, image_features, pafs_op)
-            #heatmaps_op = self.Heatmap_Stages(image_features, pafs_op)
+            #heatmaps_op = []
+            #if(self.train_heatmaps):
+            #    heatmaps_op = self.Heatmap_Stages(im_46x46, image_features, pafs_op)
+            heatmaps_op = self.Heatmap_Stages(im_46x46, image_features, pafs_op)
             return pafs_op, heatmaps_op
         else:
             pafs = self.PAF_Stages(im_46x46, image_features)
