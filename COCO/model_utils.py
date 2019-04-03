@@ -4,6 +4,7 @@ from CONSTANTS import *
 import torch
 import torch.nn.functional as F
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+import scipy.ndimage.filters as fi
 import time
 
 def timeit(method):
@@ -34,6 +35,27 @@ def calculate_heatmap(fliped_img, kp_id, keypoints, sigma=7):
         mask = np.maximum(mask, np.exp(-np.linalg.norm(np.array([col, row]) - point)**2 / sigma**2))
     mask[mask<1e-4] = 0
     return mask, KEYPOINT_EXISTS #w,h (x,y)
+
+def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
+    pad = 7
+    ps = 14
+    g_vals = GAUSSIAN_14X14
+    if(kp_id in SMALLER_HEATMAP_GROUP):
+        ps = 8
+        g_vals = GAUSSIAN_8X8
+    
+    ps_hf = ps//2
+    
+    points = keypoints[:,kp_id, :2][keypoints[:,kp_id,2]>0]
+    KEYPOINT_EXISTS = (len(points)>0)
+    ncols, nrows = fliped_img.shape[:2]
+    mask = np.zeros((ncols, nrows))
+    
+    for (x,y) in points:
+        mask[x-ps_hf : x+ps_hf, y-ps_hf : y+ps_hf] = g_vals
+    mask = mask[pad:-pad, pad:-pad]
+    return mask, KEYPOINT_EXISTS
+
 
 def calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width=5):
     #(img) HxWx3 to (fliped_img) WxHx3 (x,y,3)
@@ -84,6 +106,27 @@ def get_heatmap_masks(img, keypoints, kp_ids = KEYPOINT_ORDER, sigma=7):
     
     for i, kp_id in enumerate(kp_ids):
         mask, HM_IS_LABELED = calculate_heatmap(fliped_img, kp_id, keypoints, sigma)
+        HM_BINARY_IND[i] = int(HM_IS_LABELED)
+        mask = mask.transpose()
+        heatmaps[i] = mask
+    heatmaps[len(kp_ids)] = np.ones((h,w)) - np.sum(heatmaps, axis=0)
+    HM_BINARY_IND[len(kp_ids)] = 1
+    return heatmaps, HM_BINARY_IND
+
+def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
+    img = np.array(img)
+    h,w = img.shape[:2]
+    pad = 7
+    img = np.pad(img, pad_width=[(pad,pad),(pad,pad),(0,0)], mode='constant', constant_values=0)
+    
+    heatmaps = np.zeros((len(kp_ids)+1, h, w))
+    HM_BINARY_IND = np.zeros(len(kp_ids)+1)
+    fliped_img = img.transpose((1,0,2))
+    kps_copy = keypoints.copy()
+    kps_copy[:,:,:2][kps_copy[:,:,2]>0] = kps_copy[:,:,:2][kps_copy[:,:,2]>0]+pad
+    
+    for i, kp_id in enumerate(kp_ids):
+        mask, HM_IS_LABELED = calculate_heatmap_optimized(fliped_img, kp_id, kps_copy)
         HM_BINARY_IND[i] = int(HM_IS_LABELED)
         mask = mask.transpose()
         heatmaps[i] = mask
@@ -194,3 +237,13 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
         cumulative_hm_loss += stg_hm_loss
    
     return cumulative_paf_loss+cumulative_hm_loss
+
+def gkern2(kernlen=21, nsig=3):
+    """Returns a 2D Gaussian kernel array."""
+    
+    # create nxn zeros
+    inp = np.zeros((kernlen, kernlen))
+    # set element at the middle to one, a dirac delta
+    inp[kernlen//2, kernlen//2] = 1
+    # gaussian-smooth the dirac, resulting in a gaussian filter mask
+    return fi.gaussian_filter(inp, nsig)

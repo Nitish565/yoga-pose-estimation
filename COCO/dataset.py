@@ -11,12 +11,12 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
         super(COCO_Person_Dataset, self).__init__()
         self.image_dir = image_dir
         self.im_ids = np.load(processed_files["im_ids"])
-        self.img_id_to_annotations = np.load(processed_files["img_id_to_annotations"]).ravel()[0]
-        self.img_id_to_image_info = np.load(processed_files["img_id_to_image_info"]).ravel()[0]
+        self.img_id_to_annotations = np.load(processed_files["img_id_to_annotations"], allow_pickle=True).ravel()[0]
+        self.img_id_to_image_info = np.load(processed_files["img_id_to_image_info"], allow_pickle=True).ravel()[0]
         
         self.tfms = tfms
         self.tensor_tfms = tensor_tfms
-        self.get_heatmap_masks = model_utils.get_heatmap_masks
+        self.get_heatmap_masks = model_utils.get_heatmap_masks_optimized     #get_heatmap_masks
         self.get_paf_masks = model_utils.get_paf_masks
         self.limb_width = limb_width
         self.sigma = sigma
@@ -32,8 +32,8 @@ class COCO_Person_Dataset(torch.utils.data.Dataset):
         if self.tfms:#~5-8ms with minimal tfms, ~20ms if all included
             tfmd_sample = self.tfms({"image":img, "keypoints":keypoints})
             img, image_46x46, keypoints = tfmd_sample["image"], tfmd_sample["image_46x46"], tfmd_sample["keypoints"]
-        
-        heatmaps, HM_BINARY_IND = self.get_heatmap_masks(img, keypoints, sigma=self.sigma)
+
+        heatmaps, HM_BINARY_IND = self.get_heatmap_masks(img, keypoints)
         pafs, PAF_BINARY_IND = [],[]#self.get_paf_masks(img, keypoints, limb_width=self.limb_width)
         
         if self.tensor_tfms:#~23ms

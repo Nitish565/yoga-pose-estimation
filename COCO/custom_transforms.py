@@ -136,3 +136,20 @@ class UnNormalizeImgBatch(object):
     
     def __call__(self, batch):
         return (batch*self.std) + self.mean
+
+class Resize(object):
+    def __init__(self, size=368):
+        self.size = size
+    
+    def __call__(self, im):
+        if(im.height > im.width):
+            w = int(self.size*im.width/im.height)
+            h = self.size
+            pad_val = int((self.size-w)/2)
+            pad = (self.size-w-pad_val,0,pad_val,0)
+        else:
+            h = int(self.size*im.height/im.width)
+            w = self.size
+            pad_val = int((self.size-h)/2)
+            pad = (0,self.size-h-pad_val,0,pad_val)
+        return ImageOps.expand(im.resize((w,h),resample=Image.BILINEAR), pad)
