@@ -18,6 +18,10 @@ class F(nn.Module):
                                               )
         model_utils.freeze_all_layers(self.vgg)
     
+    def freeze_all_layers(self):
+        model_utils.freeze_all_layers(self.vgg)
+        model_utils.freeze_all_layers(self.conv_4_3_and_4_4)
+    
     def forward(self, x):
         return self.conv_4_3_and_4_4(self.vgg(x))
 
@@ -165,6 +169,7 @@ class Net(nn.Module):
 
     def set_to_inference(self):
         self.in_training = False
+        self.F.freeze_all_layers()
         self.PAF_Stages.set_to_inference()
         self.Heatmap_Stages.set_to_inference()
     
