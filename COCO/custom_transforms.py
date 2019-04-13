@@ -12,6 +12,29 @@ class Denorm(object):
     
     def __call__(self, tensor):
         return tensor.mul(self.std).add(self.mean)
+    
+class RandomCrop(object):
+    def __init__(self, size=368):
+        self.sz = size
+        
+    def __call__(self, sample):
+        img = sample['image']
+        keypoints = sample['keypoints']
+        H, W = img.height, img.width
+        
+        if (W>self.sz and H>self.sz): #and np.random.random()>0.5):
+            x = np.random.randint(W - self.sz)
+            y = np.random.randint(H - self.sz)
+            croped_img = img.crop(box=(x,y, x+self.sz, y+self.sz))
+            
+            keypoints[keypoints[:,:,0]<x] = np.array([0,0,0])
+            keypoints[keypoints[:,:,1]<y] = np.array([0,0,0])
+            keypoints[keypoints[:,:,0]>x+self.sz] = np.array([0,0,0])
+            keypoints[keypoints[:,:,1]>y+self.sz] = np.array([0,0,0])
+            keypoints[:,:,:2][keypoints[:,:,2]>0] = keypoints[:,:,:2][keypoints[:,:,2]>0] - np.array([[x, y]])
+            
+            return { 'image' : croped_img, 'keypoints':keypoints }
+        else: return sample
 
 class ResizeImgAndKeypoints(object):
     def __init__(self, size=224):

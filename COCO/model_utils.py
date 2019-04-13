@@ -71,7 +71,7 @@ def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
     
     for (x,y) in points:
         mask[x-ps_hf : x+ps_hf, y-ps_hf : y+ps_hf] = g_vals
-    
+
     mask = mask[pad:-pad, pad:-pad]
     return mask, KEYPOINT_EXISTS
 
