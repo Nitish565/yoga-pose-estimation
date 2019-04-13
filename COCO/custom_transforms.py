@@ -20,7 +20,7 @@ class ResizeImgAndKeypoints(object):
     
     def __call__(self, sample):
         im = sample['image']
-        keypoints = sample['keypoints'].copy() #2x17x3
+        keypoints = sample['keypoints'].copy().astype(float) #2x17x3
         IM_H, IM_W = im.height, im.width
         if(IM_H > IM_W):
             w = int(self.size*IM_W/IM_H)
@@ -43,12 +43,12 @@ class ResizeImgAndKeypoints(object):
         resized_img = ImageOps.expand(im.resize((w,h),resample=Image.BILINEAR), pad)
         return { 'image' : resized_img , 'image_46x46': self.Resize(resized_img),'keypoints' : keypoints }
 
-class RandomFlipImgAndKeypoints(object):
+class FlipHR(object):
     def __call__(self, sample):
         img = sample['image']
         keypoints = sample['keypoints']
         
-        if np.random.random() > 0.6:
+        if np.random.random() > 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w, h = img.size
             keypoints[:, :, 0][keypoints[:, :, 2]>0] = w - keypoints[:, :, 0][keypoints[:, :, 2]>0]
@@ -65,6 +65,28 @@ class RandomFlipImgAndKeypoints(object):
             return { 'image' : img, 'image_46x46': ImageOps.mirror(sample['image_46x46']) ,'keypoints' : keypoints }
         else: return sample
 
+class FlipUD(object):
+    def __call__(self, sample):
+        img = sample['image']
+        keypoints = sample['keypoints']
+        
+        if np.random.random() > 0.5:
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            w, h = img.size
+            keypoints[:, :, 1][keypoints[:, :, 2]>0] = h - keypoints[:, :, 1][keypoints[:, :, 2]>0]
+            copy = keypoints.copy()
+            keypoints[:,1,:], keypoints[:,2,:] = copy[:,2,:], copy[:,1,:]
+            keypoints[:,3,:], keypoints[:,4,:] = copy[:,4,:], copy[:,3,:]
+            keypoints[:,5,:], keypoints[:,6,:] = copy[:,6,:], copy[:,5,:]
+            keypoints[:,7,:], keypoints[:,8,:] = copy[:,8,:], copy[:,7,:]
+            keypoints[:,9,:], keypoints[:,10,:] = copy[:,10,:], copy[:,9,:]
+            keypoints[:,11,:], keypoints[:,12,:] = copy[:,12,:], copy[:,11,:]
+            keypoints[:,13,:], keypoints[:,14,:] = copy[:,14,:], copy[:,13,:]
+            keypoints[:,15,:], keypoints[:,16,:] = copy[:,16,:], copy[:,15,:]
+        
+            return { 'image' : img, 'image_46x46': ImageOps.flip(sample['image_46x46']) ,'keypoints' : keypoints }
+        else: return sample
+        
 class ColorJitter(object):
     def __init__(self, brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1):
         self.tfm = transforms.ColorJitter(brightness=brightness, contrast=contrast, saturation=saturation, hue=hue)
@@ -82,28 +104,34 @@ class RandomGrayscale(object):
         img = self.tfm(sample['image'])
         if(len(img.getbands())<3):
             img = self.gs(img)
-            sample['image_46x46'] = self.gs(sample['image_46x46'])	
+            sample['image_46x46'] = self.gs(sample['image_46x46'])
         return { 'image' : img, 'image_46x46' : sample['image_46x46'], 'keypoints': sample['keypoints'] }
 
 class RandomRotateImgAndKeypoints(object):
-    def __init__(self, deg=5):
+    def __init__(self, deg=40):
         self.deg = deg
     
-    def __rotate__(self, origin, keypoints, deg):
+    def __rotate__(self, origin, keypoints, deg, sz):
         ox, oy = origin
         theta = np.math.radians(-deg) #-deg since we measure y,x from top left and not w/2,h/2
-        keypoints[:,:,0][keypoints[:,:,2]>0] = (np.math.cos(theta)*(keypoints[:,:,0][keypoints[:,:,2]>0] - ox) - np.math.sin(theta)*(keypoints[:,:,1][keypoints[:,:,2]>0] - oy)) +ox
-        keypoints[:,:,1][keypoints[:,:,2]>0] = (np.math.sin(theta)*(keypoints[:,:,0][keypoints[:,:,2]>0] - ox) + np.math.cos(theta)*(keypoints[:,:,1][keypoints[:,:,2]>0] - oy)) +oy
+        X = keypoints[:,:,0][keypoints[:,:,2]>0]
+        Y = keypoints[:,:,1][keypoints[:,:,2]>0]
+        
+        keypoints[:,:,0][keypoints[:,:,2]>0] = ox + (np.math.cos(theta)*(X - ox) - np.math.sin(theta)*(Y - oy)) 
+        keypoints[:,:,1][keypoints[:,:,2]>0] = oy + (np.math.sin(theta)*(X - ox) + np.math.cos(theta)*(Y - oy)) 
+        
+        inds = np.logical_or(np.any((keypoints[:,:,:2]<0), axis=2), np.any((keypoints[:,:,:2]>sz), axis=2))
+        keypoints[inds,:] = np.array([0,0,0])
         return keypoints
     
     def __call__(self, sample):
-        if(np.random.random()>0.6):
+        if(np.random.random()>0.1):
             img = sample['image']
             keypoints = sample['keypoints'].copy()
             rand_deg = np.random.randint(-1*self.deg, self.deg+1)
             img = img.rotate(rand_deg)
             w, h = img.size
-            res = self.__rotate__((w/2, h/2), keypoints, rand_deg)
+            res = self.__rotate__((w/2, h/2), keypoints, rand_deg, h)
             return { 'image' : img, 'image_46x46' : sample['image_46x46'].rotate(rand_deg) ,'keypoints' : res }
         else:
             return sample

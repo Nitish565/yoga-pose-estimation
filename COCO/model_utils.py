@@ -64,12 +64,14 @@ def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
     ps_hf = ps//2
     
     points = keypoints[:,kp_id, :2][keypoints[:,kp_id,2]>0]
+    points = np.rint(points).astype(int)
     KEYPOINT_EXISTS = (len(points)>0)
     ncols, nrows = fliped_img.shape[:2]
     mask = np.zeros((ncols, nrows))
     
     for (x,y) in points:
         mask[x-ps_hf : x+ps_hf, y-ps_hf : y+ps_hf] = g_vals
+    
     mask = mask[pad:-pad, pad:-pad]
     return mask, KEYPOINT_EXISTS
 
@@ -93,7 +95,6 @@ def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
     heatmaps[len(kp_ids)] = np.ones((h,w)) - np.sum(heatmaps, axis=0)
     HM_BINARY_IND[len(kp_ids)] = 1
     return heatmaps, HM_BINARY_IND
-
 
 def calculate_paf_mask(fliped_img, joint_pair, keypoints, limb_width=5):
     #(img) HxWx3 to (fliped_img) WxHx3 (x,y,3)
@@ -209,7 +210,7 @@ def get_keypoints_from_annotations(anns):
     keypoints = []
     for ann in anns:
         keypoints.append(list(zip(ann['keypoints'][::3], ann['keypoints'][1::3], ann['keypoints'][2::3])))
-    keypoints = np.array(keypoints)
+    keypoints = np.array(keypoints).astype(float)
     return keypoints
 
 def freeze_all_layers(model):
@@ -303,3 +304,42 @@ def gkern2(kernlen=21, nsig=3):
     inp[kernlen//2, kernlen//2] = 1
     # gaussian-smooth the dirac, resulting in a gaussian filter mask
     return fi.gaussian_filter(inp, nsig)
+
+'''
+def calculate_heatmap_46x46(fliped_img, kp_id, keypoints):
+    points = keypoints[:,kp_id, :2][keypoints[:,kp_id,2]>0]
+    KEYPOINT_EXISTS = (len(points)>0)
+    ncols, nrows = fliped_img.shape[:2]
+    mask = np.zeros((ncols, nrows))
+    
+    pad = 1
+    ps = 1
+    g_vals = HM_PATCH_1x1
+    for (x,y) in points:
+        mask[x, y] = g_vals
+
+    mask = mask[pad:-pad, pad:-pad]
+    return mask, KEYPOINT_EXISTS
+
+def get_heatmap_masks_46x46(img, keypoints, kp_ids = KEYPOINT_ORDER):
+    img = np.array(img)
+    h,w = 46,46#img.shape[:2]
+    pad = 1
+    img = np.pad(img, pad_width=[(pad,pad),(pad,pad),(0,0)], mode='constant', constant_values=0)
+    
+    heatmaps = np.zeros((len(kp_ids)+1, h, w))
+    HM_BINARY_IND = np.zeros(len(kp_ids)+1)
+    fliped_img = img.transpose((1,0,2))
+    kps_copy = keypoints.copy()
+    kps_copy[:,:,:2][kps_copy[:,:,2]>0] = (kps_copy[:,:,:2][kps_copy[:,:,2]>0]*0.125)+pad
+    kps_copy = np.rint(kps_copy).astype(int)
+    print(kps_copy)
+    for i, kp_id in enumerate(kp_ids):
+        mask, HM_IS_LABELED = calculate_heatmap_46x46(fliped_img, kp_id, kps_copy)
+        HM_BINARY_IND[i] = int(HM_IS_LABELED)
+        mask = mask.transpose()
+        heatmaps[i] = mask
+    heatmaps[len(kp_ids)] = np.ones((h,w)) - np.sum(heatmaps, axis=0)
+    HM_BINARY_IND[len(kp_ids)] = 1
+    return heatmaps, HM_BINARY_IND
+'''

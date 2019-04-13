@@ -16,3 +16,8 @@ SKELETON = np.array([[15, 13], [13, 11], [16, 14], [14, 12], [11, 12], [5, 11], 
 
 GAUSSIAN_14X14 = np.load('gaussian_14x14_sigma_7.npy')
 GAUSSIAN_8X8 = np.load('gaussian_8x8_sigma_3.npy')
+
+HM_PATCH_2x2 = np.array([[3.207296, 3.207296],
+                         [3.207296, 3.207296]])
+
+HM_PATCH_1x1 = np.array([[1.5966017]])
