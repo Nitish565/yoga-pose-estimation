@@ -14,15 +14,16 @@ class Denorm(object):
         return tensor.mul(self.std).add(self.mean)
     
 class RandomCrop(object):
-    def __init__(self, size=368):
+    def __init__(self, size=368, p=0.75):
         self.sz = size
+        self.p = p
         
     def __call__(self, sample):
         img = sample['image']
         keypoints = sample['keypoints']
         H, W = img.height, img.width
         
-        if (W>self.sz and H>self.sz): #and np.random.random()>0.5):
+        if (W>self.sz and H>self.sz and np.random.random()>(1-self.p)):
             x = np.random.randint(W - self.sz)
             y = np.random.randint(H - self.sz)
             croped_img = img.crop(box=(x,y, x+self.sz, y+self.sz))
@@ -67,11 +68,14 @@ class ResizeImgAndKeypoints(object):
         return { 'image' : resized_img , 'image_46x46': self.Resize(resized_img),'keypoints' : keypoints }
 
 class FlipHR(object):
+    def __init__(self, p=0.25):
+        self.p = p
+    
     def __call__(self, sample):
         img = sample['image']
         keypoints = sample['keypoints']
         
-        if np.random.random() > 0.5:
+        if np.random.random() > (1-self.p):
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w, h = img.size
             keypoints[:, :, 0][keypoints[:, :, 2]>0] = w - keypoints[:, :, 0][keypoints[:, :, 2]>0]
@@ -89,11 +93,14 @@ class FlipHR(object):
         else: return sample
 
 class FlipUD(object):
+    def __init__(self, p=0.2):
+        self.p = p
+    
     def __call__(self, sample):
         img = sample['image']
         keypoints = sample['keypoints']
         
-        if np.random.random() > 0.5:
+        if np.random.random() > (1-self.p):
             img = img.transpose(Image.FLIP_TOP_BOTTOM)
             w, h = img.size
             keypoints[:, :, 1][keypoints[:, :, 2]>0] = h - keypoints[:, :, 1][keypoints[:, :, 2]>0]
@@ -131,8 +138,9 @@ class RandomGrayscale(object):
         return { 'image' : img, 'image_46x46' : sample['image_46x46'], 'keypoints': sample['keypoints'] }
 
 class RandomRotateImgAndKeypoints(object):
-    def __init__(self, deg=40):
+    def __init__(self, deg=40, p=0.9):
         self.deg = deg
+        self.p = p
     
     def __rotate__(self, origin, keypoints, deg, sz):
         ox, oy = origin
@@ -148,7 +156,7 @@ class RandomRotateImgAndKeypoints(object):
         return keypoints
     
     def __call__(self, sample):
-        if(np.random.random()>0.1):
+        if(np.random.random()>(1-self.p)):
             img = sample['image']
             keypoints = sample['keypoints'].copy()
             rand_deg = np.random.randint(-1*self.deg, self.deg+1)
