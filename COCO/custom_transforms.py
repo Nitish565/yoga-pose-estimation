@@ -38,9 +38,9 @@ class RandomCrop(object):
         else: return sample
 
 class ResizeImgAndKeypoints(object):
-    def __init__(self, size=224):
+    def __init__(self, size=368, paf_sz=46):
         self.size = size
-        self.Resize = transforms.Resize((46,46))
+        self.Resize = transforms.Resize((paf_sz, paf_sz))
     
     def __call__(self, sample):
         im = sample['image']

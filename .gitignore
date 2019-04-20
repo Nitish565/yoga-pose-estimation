@@ -4,6 +4,7 @@
 dataset/
 classification-model/dataset/
 COCO/train2014
-COCO/annotations
+COCO/annotations/
+COCO/test-images/
 MPII/
 pose-estimation-model/asana_gt/

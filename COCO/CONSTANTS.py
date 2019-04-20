@@ -14,8 +14,8 @@ SMALLER_HEATMAP_GROUP = np.arange(0,5)#['nose', 'left_eye', 'right_eye', 'left_e
 
 SKELETON = np.array([[15, 13], [13, 11], [16, 14], [14, 12], [11, 12], [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9], [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 6]])
 
-GAUSSIAN_14X14 = np.load('gaussian_14x14_sigma_7.npy')
-GAUSSIAN_8X8 = np.load('gaussian_8x8_sigma_3.npy')
+GAUSSIAN_15X15 = np.load('gaussian_15x15_sigma_7.npy')
+GAUSSIAN_9X9 = np.load('gaussian_9x9_sigma_3.npy')
 
 HM_PATCH_2x2 = np.array([[3.207296, 3.207296],
                          [3.207296, 3.207296]])

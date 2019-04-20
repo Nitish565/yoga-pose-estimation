@@ -43,9 +43,11 @@ def plot_heatmaps(img, masks, idx_to_keypoint_type=idx_to_keypoint_type, figsize
         hide_subplot_axes(ax)
         if(i<17):
             joint_type = idx_to_keypoint_type[i]
+            peaks = model_utils.get_peaks(masks[i])
             ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
             ax.imshow(img)
             ax.imshow(masks[i], 'jet', interpolation='none', alpha=0.5)
+            ax.plot(peaks[:,0], peaks[:,1], 'w+')
         if(i==17):
             joint_type = "background"
             ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
