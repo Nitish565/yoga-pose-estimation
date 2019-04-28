@@ -211,11 +211,21 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
    
     return cumulative_paf_loss+cumulative_hm_loss
 
-def get_peaks(part_heatmap, nms_window=10):
-    coords = peak_local_max(part_heatmap, min_distance=nms_window)
-    coords[:,[0, 1]] = coords[:,[1, 0]]
-    return coords
+def get_peaks(part_heatmap, nms_window=20):
+    pad = 25
+    padded_hm = np.pad(part_heatmap, pad_width=[(pad,pad),(pad,pad)], mode='constant', constant_values=0)
+    coords = peak_local_max(padded_hm, min_distance=nms_window)
+    if(len(coords)):
+        coords[:,[0, 1]] = coords[:,[1, 0]]
+        coords = coords-pad
+    return coords.astype(float)
 
+def get_joint_positions(hms):
+    joint_pos_map = {}
+    for i, hm in enumerate(hms):
+        joint_pos_map[i] = get_peaks(hm) 
+    return joint_pos_map    
+        
 def gkern2(kernlen=21, nsig=3):
     """Returns a 2D Gaussian kernel array."""
     
