@@ -24,7 +24,7 @@ def timeit(method):
     return timed
 
 def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
-    pad = 7
+    pad = 8
     ps = 15
     g_vals = GAUSSIAN_15X15
     if(kp_id in SMALLER_HEATMAP_GROUP):
@@ -48,7 +48,7 @@ def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
 def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
     img = np.array(img)
     h,w = img.shape[:2]
-    pad = 7
+    pad = 8
     img = np.pad(img, pad_width=[(pad,pad),(pad,pad),(0,0)], mode='constant', constant_values=0)
     
     heatmaps = np.zeros((len(kp_ids)+1, h, w))
@@ -198,12 +198,12 @@ def print_training_loss_summary(loss, total_steps, current_epoch, n_epochs, n_ba
 def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds):
     cumulative_paf_loss = 0
     cumulative_hm_loss = 0
-    '''
+   
     for paf_stg in pred_pafs_stages:
             #scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_paf_loss = torch.dist(paf_stg[paf_inds], pafs_gt[paf_inds])
         cumulative_paf_loss += stg_paf_loss
-    '''
+    
     for hm_stg in pred_hms_stages:
         scaled_hms = F.interpolate(hm_stg, 368, mode="bilinear", align_corners=True).to(device)
         stg_hm_loss = torch.dist(scaled_hms[hm_inds], hms_gt[hm_inds])
