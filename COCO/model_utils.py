@@ -1,4 +1,5 @@
 import numpy as np
+import PIL
 from PIL import Image
 from CONSTANTS import *
 import torch
@@ -6,8 +7,10 @@ import torch.nn.functional as F
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 import scipy.ndimage.filters as fi
 from skimage.feature import peak_local_max
+from collections import defaultdict
+from CONSTANTS import SKELETON, keypoint_labels
+from munkres import Munkres, make_cost_matrix
 import time
-
 
 def timeit(method):
     def timed(*args, **kw):
@@ -22,6 +25,110 @@ def timeit(method):
                   (method.__name__, (te - ts)*1000))
         return result
     return timed
+
+#@timeit
+def calculate_affinity_score(j1, j2, paf_map, limb_width):
+    score = 0
+    ncols_x, nrows_y  = paf_map.shape[1:]
+    mask = np.zeros((ncols_x, nrows_y))               
+    col, row = np.ogrid[:ncols_x, :nrows_y]
+    
+    limb_length = np.linalg.norm(j2 - j1)
+    
+    if(limb_length>1e-8):
+        v = (j2 - j1)/limb_length
+        v_perp = np.array([v[1], -v[0]])
+        center_point = (j1 + j2)/2
+        cond1 = np.abs(np.dot(v, np.array([col, row]) - center_point))<= limb_length/2
+        cond2 = np.abs(np.dot(v_perp, np.array([col, row]) - j1))<=limb_width
+        
+        mask = np.logical_and(cond1, cond2).transpose()
+        
+        x_s, y_s = np.logical_and(paf_map[0], mask), np.logical_and(paf_map[1], mask)
+        non_zero_paf_pixels = np.logical_or(x_s, y_s).sum()
+        res = np.tensordot(v, np.array([x_s, y_s]), axes=([0], [0])).sum()
+        score = (res/mask.sum())*(non_zero_paf_pixels/mask.sum())**2
+        
+    return np.abs(score)
+
+#@timeit    
+def calculate_affinity_scores(j1_list, j2_list, paf_map, limb_width=5):
+    h,w = paf_map.shape[1:] 
+    affinity_scores = np.zeros((len(j1_list), len(j2_list)))
+    j1_list_copy = j1_list.copy().astype(float)
+    j2_list_copy = j2_list.copy().astype(float)
+    
+    for i, j1_pt in enumerate(j1_list):
+        for j, j2_pt in enumerate(j2_list):
+            affinity_scores[i,j] = calculate_affinity_score(j1_pt, j2_pt, paf_map, limb_width)
+            
+    return affinity_scores
+
+MUNKRES_INSTANCE = Munkres()
+#@timeit
+def compute_matches(affinity_scores, j1_pts, j2_pts):
+    matching_results = []
+    match_confidence_threshold = 0.2
+    j1_count, j2_count = affinity_scores.shape
+    indices = MUNKRES_INSTANCE.compute(make_cost_matrix(affinity_scores.tolist(), inversion_function=lambda x : 2 - x))
+    
+    for row,col in indices:
+        if(affinity_scores[row,col]>match_confidence_threshold):
+            matching_results.append((j1_pts[row], j2_pts[col], affinity_scores[row,col]))
+            
+    return matching_results
+
+def calculate_part_matches_from_predicted_joints_and_pafs(all_pred_joints_map, pred_pafs):
+    matched_parts_map = defaultdict(lambda:[])
+    for i, part_pair in enumerate(SKELETON):
+        j1_id, j2_id = part_pair
+        j1_list = all_pred_joints_map[j1_id]
+        j2_list = all_pred_joints_map[j2_id]
+        affinity_scores = []
+
+        if(len(j1_list) and len(j2_list)):        
+            affinity_scores = calculate_affinity_scores(j1_list, j2_list, pred_pafs[(2*i):(2*i)+2].numpy()) 
+
+        if(len(affinity_scores)):
+            matched_parts_map[(j1_id, j2_id)] = compute_matches(affinity_scores, all_pred_joints_map[j1_id], all_pred_joints_map[j2_id])
+
+    return matched_parts_map
+
+#@timeit
+def evaluate_model(model, im, im_stages_input):
+    paf_op_threshold = 1e-1
+    hm_op_threshold = 3e-1
+    sz = 368
+    
+    model.eval()
+    with torch.no_grad():    
+        pred_pafs, pred_hms = model(im[None].to(device), im_stages_input[None].to(device))
+        scaled_pafs = F.interpolate(pred_pafs, sz, mode="bilinear", align_corners=True).to(device)[0]
+        scaled_hms = F.interpolate(pred_hms, sz, mode="bilinear", align_corners=True).to(device)[0]
+    
+    scaled_pafs[torch.abs(scaled_pafs)<paf_op_threshold] = 0
+    scaled_hms[torch.abs(scaled_hms)<hm_op_threshold] = 0
+    return scaled_pafs, scaled_hms
+
+#@timeit
+def get_average_pafs_and_hms_predictions(im_path, model, R_368x368, test_tensor_tfms):
+    img = Image.open(im_path)
+    if(len(img.getbands())>3):
+        img = img.convert('RGB')
+    
+    im_368x368 = R_368x368(img)
+    im_184x184, im_46x46, im_23x23 = im_368x368.resize((184,184), resample=PIL.Image.BILINEAR), im_368x368.resize((46,46), resample=PIL.Image.BILINEAR), im_368x368.resize((23,23), resample=PIL.Image.BILINEAR)
+    
+    im_368x368_tensor, im_184x184_tensor, im_46x46_tensor, im_23x23_tensor = test_tensor_tfms(im_368x368), test_tensor_tfms(im_184x184), test_tensor_tfms(im_46x46), test_tensor_tfms(im_23x23)
+    
+    pafs_stride_1, hms_stride_1 = evaluate_model(model, im_368x368_tensor, im_46x46_tensor)
+    pafs_stride_2, hms_stride_2 = evaluate_model(model, im_184x184_tensor, im_23x23_tensor)
+    
+    avg_pafs = torch.add(pafs_stride_1, 0.5*pafs_stride_2)/1.5
+    avg_hms = torch.add(hms_stride_1, 0.5*hms_stride_2)/1.5
+    
+    return avg_pafs, avg_hms, im_368x368
+
 
 def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
     pad = 8
@@ -211,8 +318,8 @@ def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, h
    
     return cumulative_paf_loss+cumulative_hm_loss
 
-def get_peaks(part_heatmap, nms_window=20):
-    pad = 25
+def get_peaks(part_heatmap, nms_window=30):
+    pad = nms_window+5
     padded_hm = np.pad(part_heatmap, pad_width=[(pad,pad),(pad,pad)], mode='constant', constant_values=0)
     coords = peak_local_max(padded_hm, min_distance=nms_window)
     if(len(coords)):
@@ -220,10 +327,10 @@ def get_peaks(part_heatmap, nms_window=20):
         coords = coords-pad
     return coords.astype(float)
 
-def get_joint_positions(hms):
+def get_joint_positions(hms, nms_window=30):
     joint_pos_map = {}
     for i, hm in enumerate(hms):
-        joint_pos_map[i] = get_peaks(hm) 
+        joint_pos_map[i] = get_peaks(hm, nms_window) 
     return joint_pos_map    
         
 def gkern2(kernlen=21, nsig=3):
@@ -236,6 +343,17 @@ def gkern2(kernlen=21, nsig=3):
     # gaussian-smooth the dirac, resulting in a gaussian filter mask
     return fi.gaussian_filter(inp, nsig)
 
+
+'''
+    plt.imshow(im_368x368)
+    plot_utils.plot_pafs(im_368x368, pafs_stride_1.numpy(), figsize=(20,20))
+    plot_utils.plot_pafs(im_368x368, pafs_stride_2.numpy(), figsize=(20,20))
+    plot_utils.plot_pafs(im_368x368, avg_pafs.numpy(), figsize=(20,20))
+    
+    plot_utils.plot_heatmaps(im_368x368, hms_stride_1.numpy(), figsize=(20,20))
+    plot_utils.plot_heatmaps(im_368x368, hms_stride_2.numpy(), figsize=(20,20))
+    plot_utils.plot_heatmaps(im_368x368, avg_hms.numpy(), figsize=(20,20))
+'''
 
 '''
 def calculate_heatmap(fliped_img, kp_id, keypoints, sigma=7):
