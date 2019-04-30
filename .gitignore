@@ -8,3 +8,5 @@ COCO/annotations/
 COCO/test-images/
 MPII/
 pose-estimation-model/asana_gt/
+*.mp4
+*.avi

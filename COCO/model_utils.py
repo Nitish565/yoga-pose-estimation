@@ -10,6 +10,8 @@ from skimage.feature import peak_local_max
 from collections import defaultdict
 from CONSTANTS import SKELETON, keypoint_labels
 from munkres import Munkres, make_cost_matrix
+import cv2
+import math
 import time
 
 def timeit(method):
@@ -110,11 +112,27 @@ def evaluate_model(model, im, im_stages_input):
     scaled_hms[torch.abs(scaled_hms)<hm_op_threshold] = 0
     return scaled_pafs, scaled_hms
 
+def calculate_padding(im):
+    size = 368
+    if(im.height > im.width):
+        w = int(size*im.width/im.height)
+        h = size
+        pad_val = int((size-w)/2)
+        pad = (size-w-pad_val,0,pad_val,0)
+    else:
+        h = int(size*im.height/im.width)
+        w = size
+        pad_val = int((size-h)/2)
+        pad = (0,size-h-pad_val,0,pad_val)
+    return pad
+
 #@timeit
 def get_average_pafs_and_hms_predictions(im_path, model, R_368x368, test_tensor_tfms):
     img = Image.open(im_path)
     if(len(img.getbands())>3):
         img = img.convert('RGB')
+    
+    pad = calculate_padding(img)
     
     im_368x368 = R_368x368(img)
     im_184x184, im_46x46, im_23x23 = im_368x368.resize((184,184), resample=PIL.Image.BILINEAR), im_368x368.resize((46,46), resample=PIL.Image.BILINEAR), im_368x368.resize((23,23), resample=PIL.Image.BILINEAR)
@@ -127,8 +145,67 @@ def get_average_pafs_and_hms_predictions(im_path, model, R_368x368, test_tensor_
     avg_pafs = torch.add(pafs_stride_1, 0.5*pafs_stride_2)/1.5
     avg_hms = torch.add(hms_stride_1, 0.5*hms_stride_2)/1.5
     
-    return avg_pafs, avg_hms, im_368x368
+    return avg_pafs, avg_hms, im_368x368, pad
 
+def get_average_pafs_and_hms_predictions_on_video_frame(frame, model, R_368x368, test_tensor_tfms):
+    cv2_im = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = Image.fromarray(cv2_im)
+    pad = calculate_padding(img)
+    
+    im_368x368 = R_368x368(img)
+    im_184x184, im_46x46, im_23x23 = im_368x368.resize((184,184), resample=PIL.Image.BILINEAR), im_368x368.resize((46,46), resample=PIL.Image.BILINEAR), im_368x368.resize((23,23), resample=PIL.Image.BILINEAR)
+    
+    im_368x368_tensor, im_184x184_tensor, im_46x46_tensor, im_23x23_tensor = test_tensor_tfms(im_368x368), test_tensor_tfms(im_184x184), test_tensor_tfms(im_46x46), test_tensor_tfms(im_23x23)
+    
+    pafs_stride_1, hms_stride_1 = evaluate_model(model, im_368x368_tensor, im_46x46_tensor)
+    pafs_stride_2, hms_stride_2 = evaluate_model(model, im_184x184_tensor, im_23x23_tensor)
+    
+    avg_pafs = torch.add(pafs_stride_1, 0.5*pafs_stride_2)/1.5
+    avg_hms = torch.add(hms_stride_1, 0.5*hms_stride_2)/1.5
+    
+    return avg_pafs, avg_hms, im_368x368, pad
+
+def get_transformed_pt(pt, pad, or_h, or_w):
+    pad_l, pad_t, pad_r, pad_b = pad
+    sz = 368
+    return (int((pt[0]-pad_l)*(or_w/(sz-(pad_l+pad_r)))), int((pt[1]-pad_t)*(or_h/(sz-(pad_t+pad_b)))))
+    
+    
+def draw_bodypose(canvas, part_matches_map, pad):
+    H, W = canvas.shape[:2]
+    stickwidth = 4
+    if W>1000:
+        stickwidth = 12
+    elif(W>640):
+        stickwidth = 8
+    
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    colors = [[255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0], \
+              [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], \
+              [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+    
+    for j1, j2 in part_matches_map:
+        if(len(part_matches_map[(j1, j2)])):
+            for pt1, pt2, part_conf in part_matches_map[(j1, j2)]:
+                pt1_cpy = get_transformed_pt(pt1, pad, H, W)
+                pt2_cpy = get_transformed_pt(pt2, pad, H, W)
+                cv2.circle(canvas, (int(pt1_cpy[0]), int(pt1_cpy[1])), stickwidth, colors[j1], thickness=-1)
+                cv2.circle(canvas, (int(pt2_cpy[0]), int(pt2_cpy[1])), stickwidth, colors[j2], thickness=-1)
+            
+                cur_canvas = canvas.copy()
+                X = [pt1_cpy[1], pt2_cpy[1]]
+                Y = [pt1_cpy[0], pt2_cpy[0]]
+                mX = np.mean(X)
+                mY = np.mean(Y)
+                length = ((X[0] - X[1]) ** 2 + (Y[0] - Y[1]) ** 2) ** 0.5
+                angle = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
+                polygon = cv2.ellipse2Poly((int(mY), int(mX)), (int(length / 2), stickwidth), int(angle), 0, 360, 1)
+                cv2.fillConvexPoly(cur_canvas, polygon, colors[j1])
+                cv2.putText(cur_canvas, str(round(part_conf, 2)),(int(mY), int(mX)), font, 1, (0,0,0),3,cv2.LINE_AA)
+                
+                canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
+                
+    return canvas
 
 def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
     pad = 8
