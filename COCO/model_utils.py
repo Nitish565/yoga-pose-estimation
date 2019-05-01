@@ -179,14 +179,19 @@ def draw_bodypose(canvas, part_matches_map, pad):
     elif(W>640):
         stickwidth = 8
     
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    colors = [[255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0], \
-              [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], \
-              [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+    font = cv2.FONT_HERSHEY_SIMPLEX 
+    colors = [[255,0,0], [255,0,0], [255,0,0], 
+              [255, 170,0], [255, 170,0], 
+              [0, 255,0], [0, 255,0], 
+              [0, 255,255], [0, 255,255],
+              [0, 170,255], [0, 170,255],
+              [0,0,255], [0,0,255],
+              [255,0,170], [255,0,170],
+              [170,0,255], [170,0,255]]
     
     for j1, j2 in part_matches_map:
         if(len(part_matches_map[(j1, j2)])):
-            for pt1, pt2, part_conf in part_matches_map[(j1, j2)]:
+            for pt1, pt2, _ in part_matches_map[(j1, j2)]:
                 pt1_cpy = get_transformed_pt(pt1, pad, H, W)
                 pt2_cpy = get_transformed_pt(pt2, pad, H, W)
                 cv2.circle(canvas, (int(pt1_cpy[0]), int(pt1_cpy[1])), stickwidth, colors[j1], thickness=-1)
@@ -201,7 +206,7 @@ def draw_bodypose(canvas, part_matches_map, pad):
                 angle = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
                 polygon = cv2.ellipse2Poly((int(mY), int(mX)), (int(length / 2), stickwidth), int(angle), 0, 360, 1)
                 cv2.fillConvexPoly(cur_canvas, polygon, colors[j1])
-                cv2.putText(cur_canvas, str(round(part_conf, 2)),(int(mY), int(mX)), font, 1, (0,0,0),3,cv2.LINE_AA)
+                #cv2.putText(cur_canvas, str(round(part_conf, 2)),(int(mY), int(mX)), font, 1, (0,0,0),3,cv2.LINE_AA)
                 
                 canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
                 
