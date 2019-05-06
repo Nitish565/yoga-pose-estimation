@@ -7,7 +7,7 @@ from CONSTANTS import *
 def plot_matching_results(img, part_matches_map, all_joint_detections_map, pred_pafs):
     C,S = ['g','r','y','w','c','m','k'], ['o','+','h','.','s','P','p','*','H','x','D','d','8']
     
-    fig, axes = plt.subplots(1,19, figsize=(70,5))
+    fig, axes = plt.subplots(1,len(SKELETON), figsize=(70,5))
     for i, ax in enumerate(axes.flat): 
         ax.axis('off')
         part_pair = SKELETON[i]
@@ -59,11 +59,11 @@ def plot_heatmaps(img, masks, idx_to_keypoint_type=idx_to_keypoint_type, figsize
     plt.tight_layout()
 
 def plot_pafs(img, pafs, joint_pairs=part_pairs, figsize=(16,12)):
-    fig, axes = plt.subplots(5, 4, figsize=figsize)
+    fig, axes = plt.subplots(5, 5, figsize=figsize)
     
     for i,ax in enumerate(axes.flat):
         ax.axis('off')
-        if(i<19):
+        if(i<len(joint_pairs)):
             ax.text(10,10, joint_pairs[i][0]+'->'+joint_pairs[i][1], va='top', color="white", fontsize=12)
             ax.imshow(img)
             mask = np.logical_or(pafs[2*i], pafs[(2*i) + 1]).astype(int)
