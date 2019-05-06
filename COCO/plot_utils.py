@@ -39,12 +39,13 @@ def plot_matching_results(img, part_matches_map, all_joint_detections_map, pred_
     
 def plot_heatmaps(img, masks, idx_to_keypoint_type=idx_to_keypoint_type, figsize=(16,12)):
     fig, axes = plt.subplots(5, 4, figsize=figsize)
+    sz = img.size[0]
     
     for i,ax in enumerate(axes.flat):
         ax.axis('off')
         if(i<17):
             joint_type = idx_to_keypoint_type[i]
-            peaks = model_utils.get_peaks(masks[i])
+            peaks = model_utils.get_peaks(masks[i], nms_window=int(sz*30/368))
             ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
             ax.imshow(img)
             ax.imshow(masks[i], 'jet', interpolation='none', alpha=0.5)
@@ -69,6 +70,7 @@ def plot_pafs(img, pafs, joint_pairs=part_pairs, figsize=(16,12)):
             ax.imshow(mask, 'jet', interpolation='none', alpha=0.7)
     plt.tight_layout()
 
+'''
 def plot_paf_maps_from_annotations(img, keypoints, joint_pairs=part_pairs, keypoint_type_to_idx=keypoint_type_to_idx, n_items=19, figsize=(16,12), limb_width=5):
     fig, axes = plt.subplots(5, 4, figsize=figsize)
     
@@ -96,3 +98,4 @@ def plot_heat_maps_from_annotations(img, anns, n_items=17, figsize=(16,12), sigm
             ax.imshow(img)
             ax.imshow(mask.transpose(), 'jet', interpolation='none', alpha=0.5)
     plt.tight_layout()
+'''

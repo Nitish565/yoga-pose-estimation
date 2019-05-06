@@ -55,7 +55,8 @@ def calculate_affinity_score(j1, j2, paf_map, limb_width):
 
 #@timeit    
 def calculate_affinity_scores(j1_list, j2_list, paf_map, limb_width=5):
-    h,w = paf_map.shape[1:] 
+    h,w = paf_map.shape[1:]
+    limb_width = h*int(limb_width)/46
     affinity_scores = np.zeros((len(j1_list), len(j2_list)))
     j1_list_copy = j1_list.copy().astype(float)
     j2_list_copy = j2_list.copy().astype(float)
@@ -212,32 +213,32 @@ def draw_bodypose(canvas, part_matches_map, pad):
                 
     return canvas
 
-def calculate_heatmap_optimized(fliped_img, kp_id, keypoints):
-    pad = 8
-    ps = 15
-    g_vals = GAUSSIAN_15X15
+def calculate_heatmap_optimized(fliped_img, kp_id, keypoints, pad, hm_sz, heatmap_ps_map):
+    H,W = fliped_img.shape[:2]
+    ps = int(heatmap_ps_map['ps'])
+    g_vals = heatmap_ps_map['ps_vals'].copy()
     if(kp_id in SMALLER_HEATMAP_GROUP):
-        ps = 9
-        g_vals = GAUSSIAN_9X9
+        ps = int(heatmap_ps_map['ps_small'])
+        g_vals = heatmap_ps_map['ps_small_vals'].copy()
     
     ps_hf = ps//2
-    
     points = keypoints[:,kp_id, :2][keypoints[:,kp_id,2]>0]
     points = np.rint(points).astype(int)
     KEYPOINT_EXISTS = (len(points)>0)
-    ncols, nrows = fliped_img.shape[:2]
-    mask = np.zeros((ncols, nrows))
+    mask = np.zeros((H, W))
     
     for (x,y) in points:
         mask[x-ps_hf : x+ps_hf+1, y-ps_hf : y+ps_hf+1] = g_vals
-
+    
     mask = mask[pad:-pad, pad:-pad]
     return mask, KEYPOINT_EXISTS
 
-def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
+def get_heatmap_masks_optimized(img, keypoints, sigma, heatmap_ps_map, kp_ids = KEYPOINT_ORDER):
     img = np.array(img)
     h,w = img.shape[:2]
     pad = 8
+    if h==368//2:
+        pad = 5
     img = np.pad(img, pad_width=[(pad,pad),(pad,pad),(0,0)], mode='constant', constant_values=0)
     
     heatmaps = np.zeros((len(kp_ids)+1, h, w))
@@ -247,7 +248,7 @@ def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
     kps_copy[:,:,:2][kps_copy[:,:,2]>0] = kps_copy[:,:,:2][kps_copy[:,:,2]>0]+pad
     
     for i, kp_id in enumerate(kp_ids):
-        mask, HM_IS_LABELED = calculate_heatmap_optimized(fliped_img, kp_id, kps_copy)
+        mask, HM_IS_LABELED = calculate_heatmap_optimized(fliped_img, kp_id, kps_copy, pad, h, heatmap_ps_map)
         HM_BINARY_IND[i] = int(HM_IS_LABELED)
         mask = mask.transpose()
         heatmaps[i] = mask
@@ -255,11 +256,12 @@ def get_heatmap_masks_optimized(img, keypoints, kp_ids = KEYPOINT_ORDER):
     HM_BINARY_IND[len(kp_ids)] = 1
     return heatmaps, HM_BINARY_IND
 
-def calculate_paf_mask_optimized(fliped_img, joint_pair, keypoints, limb_width):
-    #(img) HxWx3 to (fliped_img) WxHx3 (x,y,3)
+def calculate_paf_mask_optimized(fliped_img, joint_pair, keypoints, paf_sz, limb_width):
     j1_idx, j2_idx = joint_pair[0], joint_pair[1]
-    
-    ncols_x, nrows_y  = 46,46#fliped_img.shape[:2]
+    thresh = 1e-8
+    if(paf_sz==23):
+        thresh=1e-12
+    ncols_x, nrows_y  = paf_sz, paf_sz 
     mask = np.zeros((ncols_x, nrows_y))               #in x,y order
     col, row = np.ogrid[:ncols_x, :nrows_y]
     
@@ -273,10 +275,9 @@ def calculate_paf_mask_optimized(fliped_img, joint_pair, keypoints, limb_width):
         j1, j2 =  item[j1_idx][:2], item[j2_idx][:2]
         keypoints_detected = item[j1_idx][2] and item[j2_idx][2]
         PAF_IND = PAF_IND or keypoints_detected>0
-        
         if(keypoints_detected):
             limb_length = np.linalg.norm(j2 - j1)
-            if(limb_length>1e-8):
+            if(limb_length>thresh):
                 v = (j2 - j1)/limb_length
                 v_perp = np.array([v[1], -v[0]])
                 center_point = (j1 + j2)/2
@@ -284,6 +285,7 @@ def calculate_paf_mask_optimized(fliped_img, joint_pair, keypoints, limb_width):
                 cond1 = np.abs(np.dot(v, np.array([col, row]) - center_point))<= limb_length/2
                 cond2 = np.abs(np.dot(v_perp, np.array([col, row]) - j1))<=limb_width
                 mask = np.logical_and(cond1, cond2)
+                
                 paf_p_x[i], paf_p_y[i] = mask*v[0], mask*v[1]
                 if(v[0]):
                     NON_ZERO_VEC_COUNT[0][mask] +=1
@@ -295,17 +297,20 @@ def calculate_paf_mask_optimized(fliped_img, joint_pair, keypoints, limb_width):
     return final_paf_map, PAF_IND
 
 
-def get_paf_masks_optimized(img, keypoints, part_pairs=SKELETON, limb_width=5):
-    img = np.array(img)
-    h,w = 46,46
-    pafs = np.zeros((len(part_pairs)*2, h, w))
+def get_paf_masks_optimized(img_stg_input, keypoints, limb_width, part_pairs=SKELETON):
+    img_stg_input = np.array(img_stg_input)
+    paf_sz = int(46*(limb_width/5))
+    downsample_ratio = 0.125
+
+    pafs = np.zeros((len(part_pairs)*2, paf_sz, paf_sz))
     PAF_BINARY_IND = np.zeros(len(part_pairs)*2)
-    fliped_img = img.transpose((1,0,2))
+    fliped_img = img_stg_input.transpose((1,0,2))
     kps_copy = keypoints.copy()
-    kps_copy[:,:,:2][kps_copy[:,:,2]>0] = kps_copy[:,:,:2][kps_copy[:,:,2]>0]*0.125
+    kps_copy[:,:,:2][kps_copy[:,:,2]>0] = kps_copy[:,:,:2][kps_copy[:,:,2]>0]*downsample_ratio
     
     for i, joint_pair in enumerate(part_pairs):
-        mask, PAF_IS_LABELED = calculate_paf_mask_optimized(fliped_img, joint_pair, kps_copy, 0.125*limb_width)
+        mask, PAF_IS_LABELED = calculate_paf_mask_optimized(fliped_img, joint_pair, kps_copy, paf_sz, downsample_ratio*limb_width)
+
         PAF_BINARY_IND[2*i], PAF_BINARY_IND[(2*i)+1]  = int(PAF_IS_LABELED), int(PAF_IS_LABELED)
         mask = mask.transpose((0,2,1))
         pafs[2*i], pafs[(2*i) +1] = mask[0], mask[1]   #x component, y component of v
@@ -384,23 +389,23 @@ def print_training_loss_summary(loss, total_steps, current_epoch, n_epochs, n_ba
         print ('Epoch [{}/{}], Iteration [{}/{}], Loss: {:.4f}'
                .format(current_epoch, n_epochs, steps_this_epoch, n_batches, loss))
 
-def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds):
+def paf_and_heatmap_loss(pred_pafs_stages, pafs_gt, paf_inds, pred_hms_stages, hms_gt, hm_inds, IM_SIZE):
     cumulative_paf_loss = 0
     cumulative_hm_loss = 0
    
     for paf_stg in pred_pafs_stages:
-            #scaled_pafs = F.interpolate(paf_stg, 368, mode="bilinear", align_corners=True).to(device)
+            #scaled_pafs = F.interpolate(paf_stg, IM_SIZE, mode="bilinear", align_corners=True).to(device)
         stg_paf_loss = torch.dist(paf_stg[paf_inds], pafs_gt[paf_inds])
         cumulative_paf_loss += stg_paf_loss
     
     for hm_stg in pred_hms_stages:
-        scaled_hms = F.interpolate(hm_stg, 368, mode="bilinear", align_corners=True).to(device)
+        scaled_hms = F.interpolate(hm_stg, IM_SIZE, mode="bilinear", align_corners=True).to(device)
         stg_hm_loss = torch.dist(scaled_hms[hm_inds], hms_gt[hm_inds])
         cumulative_hm_loss += stg_hm_loss
    
     return cumulative_paf_loss+cumulative_hm_loss
 
-def get_peaks(part_heatmap, nms_window=30):
+def get_peaks(part_heatmap, nms_window):
     pad = nms_window+5
     padded_hm = np.pad(part_heatmap, pad_width=[(pad,pad),(pad,pad)], mode='constant', constant_values=0)
     coords = peak_local_max(padded_hm, min_distance=nms_window)
@@ -425,6 +430,19 @@ def gkern2(kernlen=21, nsig=3):
     # gaussian-smooth the dirac, resulting in a gaussian filter mask
     return fi.gaussian_filter(inp, nsig)
 
+def get_heatmap_ps_map(im_sz):
+    heatmap_ps_map = {
+            'ps' : 15,
+            'ps_vals' : GAUSSIAN_15X15,
+            'ps_small' : 9,
+            'ps_small_vals' : GAUSSIAN_9X9
+    }
+    if(im_sz==368//2):
+        heatmap_ps_map['ps'] = 9
+        heatmap_ps_map['ps_vals'] = GAUSSIAN_9X9
+        heatmap_ps_map['ps_small'] = 5
+        heatmap_ps_map['ps_small_vals'] = GAUSSIAN_5X5
+    return heatmap_ps_map    
 
 '''
     plt.imshow(im_368x368)
