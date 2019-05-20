@@ -5,8 +5,12 @@ dataset/
 classification-model/dataset/
 COCO/train2014
 COCO/annotations/
-COCO/test-images/
+COCO/train2017
+COCO/annotations 2/
+COCO/test/
 MPII/
 pose-estimation-model/asana_gt/
 *.mp4
 *.avi
+COCO/train2017.zip
+COCO/annotations_trainval2017.zip

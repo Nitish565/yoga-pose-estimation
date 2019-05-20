@@ -44,10 +44,10 @@ def plot_heatmaps(img, masks, idx_to_keypoint_type=idx_to_keypoint_type, figsize
     for i,ax in enumerate(axes.flat):
         ax.axis('off')
         if(i<17):
+            ax.imshow(img)
             joint_type = idx_to_keypoint_type[i]
             peaks = model_utils.get_peaks(masks[i], nms_window=int(sz*30/368))
             ax.text(10,10, joint_type, va='top', color="white", fontsize=12)
-            ax.imshow(img)
             ax.imshow(masks[i], 'jet', interpolation='none', alpha=0.5)
             ax.plot(peaks[:,0], peaks[:,1], 'w+')
         if(i==17):

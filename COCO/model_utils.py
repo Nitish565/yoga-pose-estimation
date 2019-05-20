@@ -13,6 +13,7 @@ from munkres import Munkres, make_cost_matrix
 import cv2
 import math
 import time
+import CONFIG
 
 def timeit(method):
     def timed(*args, **kw):
@@ -54,9 +55,9 @@ def calculate_affinity_score(j1, j2, paf_map, limb_width):
     return np.abs(score)
 
 #@timeit    
-def calculate_affinity_scores(j1_list, j2_list, paf_map, limb_width=5):
+def calculate_affinity_scores(j1_list, j2_list, paf_map):
     h,w = paf_map.shape[1:]
-    limb_width = h*int(limb_width)/46
+    limb_width = h*5/368
     affinity_scores = np.zeros((len(j1_list), len(j2_list)))
     j1_list_copy = j1_list.copy().astype(float)
     j2_list_copy = j2_list.copy().astype(float)
@@ -71,7 +72,7 @@ MUNKRES_INSTANCE = Munkres()
 #@timeit
 def compute_matches(affinity_scores, j1_pts, j2_pts):
     matching_results = []
-    match_confidence_threshold = 0.2
+    match_confidence_threshold = CONFIG.match_confidence_threshold
     j1_count, j2_count = affinity_scores.shape
     indices = MUNKRES_INSTANCE.compute(make_cost_matrix(affinity_scores.tolist(), inversion_function=lambda x : 2 - x))
     
@@ -83,7 +84,7 @@ def compute_matches(affinity_scores, j1_pts, j2_pts):
 
 def calculate_part_matches_from_predicted_joints_and_pafs(all_pred_joints_map, pred_pafs):
     matched_parts_map = defaultdict(lambda:[])
-    for i, part_pair in enumerate(SKELETON):
+    for i, part_pair in enumerate(INFERENCE_SKELETON):
         j1_id, j2_id = part_pair
         j1_list = all_pred_joints_map[j1_id]
         j2_list = all_pred_joints_map[j2_id]
@@ -98,10 +99,10 @@ def calculate_part_matches_from_predicted_joints_and_pafs(all_pred_joints_map, p
     return matched_parts_map
 
 #@timeit
-def evaluate_model(model, im, im_stages_input):
-    paf_op_threshold = 1e-1
-    hm_op_threshold = 3e-1
-    sz = 368
+def evaluate_model(model, im, im_stages_input, IM_SIZE):
+    paf_op_threshold = CONFIG.paf_op_threshold
+    hm_op_threshold = CONFIG.hm_op_threshold
+    sz = IM_SIZE
     
     model.eval()
     with torch.no_grad():    
@@ -113,8 +114,8 @@ def evaluate_model(model, im, im_stages_input):
     scaled_hms[torch.abs(scaled_hms)<hm_op_threshold] = 0
     return scaled_pafs, scaled_hms
 
-def calculate_padding(im):
-    size = 368
+def calculate_padding(im, IM_SIZE):
+    size = IM_SIZE
     if(im.height > im.width):
         w = int(size*im.width/im.height)
         h = size
@@ -128,51 +129,40 @@ def calculate_padding(im):
     return pad
 
 #@timeit
-def get_average_pafs_and_hms_predictions(im_path, model, R_368x368, test_tensor_tfms):
+def get_pafs_and_hms_predictions(im_path, model, test_tensor_tfms, Resize, IM_SIZE, IM_STG_INPUT_SIZE):
     img = Image.open(im_path)
     if(len(img.getbands())>3):
         img = img.convert('RGB')
     
-    pad = calculate_padding(img)
+    pad = calculate_padding(img, IM_SIZE)
+    im = Resize(img)
+    im_stg_input = im.resize((IM_STG_INPUT_SIZE, IM_STG_INPUT_SIZE), resample=PIL.Image.BILINEAR)
+    im_tensor, im_stg_input_tensor = test_tensor_tfms(im), test_tensor_tfms(im_stg_input)
     
-    im_368x368 = R_368x368(img)
-    im_184x184, im_46x46, im_23x23 = im_368x368.resize((184,184), resample=PIL.Image.BILINEAR), im_368x368.resize((46,46), resample=PIL.Image.BILINEAR), im_368x368.resize((23,23), resample=PIL.Image.BILINEAR)
+    pafs, hms = evaluate_model(model, im_tensor, im_stg_input_tensor, IM_SIZE)
     
-    im_368x368_tensor, im_184x184_tensor, im_46x46_tensor, im_23x23_tensor = test_tensor_tfms(im_368x368), test_tensor_tfms(im_184x184), test_tensor_tfms(im_46x46), test_tensor_tfms(im_23x23)
-    
-    pafs_stride_1, hms_stride_1 = evaluate_model(model, im_368x368_tensor, im_46x46_tensor)
-    pafs_stride_2, hms_stride_2 = evaluate_model(model, im_184x184_tensor, im_23x23_tensor)
-    
-    avg_pafs = torch.add(pafs_stride_1, 0.5*pafs_stride_2)/1.5
-    avg_hms = torch.add(hms_stride_1, 0.5*hms_stride_2)/1.5
-    
-    return avg_pafs, avg_hms, im_368x368, pad
+    return pafs, hms, im, pad
 
-def get_average_pafs_and_hms_predictions_on_video_frame(frame, model, R_368x368, test_tensor_tfms):
+def get_pafs_and_hms_predictions_on_video_frame(frame, model, test_tensor_tfms, Resize, IM_SIZE, IM_STG_INPUT_SIZE):
+    
     cv2_im = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = Image.fromarray(cv2_im)
-    pad = calculate_padding(img)
+    pad = calculate_padding(img, IM_SIZE)
+    im = Resize(img)
+    im_stg_input = im.resize((IM_STG_INPUT_SIZE, IM_STG_INPUT_SIZE), resample=PIL.Image.BILINEAR)
+    im_tensor, im_stg_input_tensor = test_tensor_tfms(im), test_tensor_tfms(im_stg_input)
     
-    im_368x368 = R_368x368(img)
-    im_184x184, im_46x46, im_23x23 = im_368x368.resize((184,184), resample=PIL.Image.BILINEAR), im_368x368.resize((46,46), resample=PIL.Image.BILINEAR), im_368x368.resize((23,23), resample=PIL.Image.BILINEAR)
+    pafs, hms = evaluate_model(model, im_tensor, im_stg_input_tensor, IM_SIZE)
     
-    im_368x368_tensor, im_184x184_tensor, im_46x46_tensor, im_23x23_tensor = test_tensor_tfms(im_368x368), test_tensor_tfms(im_184x184), test_tensor_tfms(im_46x46), test_tensor_tfms(im_23x23)
-    
-    pafs_stride_1, hms_stride_1 = evaluate_model(model, im_368x368_tensor, im_46x46_tensor)
-    pafs_stride_2, hms_stride_2 = evaluate_model(model, im_184x184_tensor, im_23x23_tensor)
-    
-    avg_pafs = torch.add(pafs_stride_1, 0.5*pafs_stride_2)/1.5
-    avg_hms = torch.add(hms_stride_1, 0.5*hms_stride_2)/1.5
-    
-    return avg_pafs, avg_hms, im_368x368, pad
+    return pafs, hms, im, pad
 
-def get_transformed_pt(pt, pad, or_h, or_w):
+def get_transformed_pt(pt, pad, or_h, or_w, IM_SIZE):
     pad_l, pad_t, pad_r, pad_b = pad
-    sz = 368
+    sz = IM_SIZE
     return (int((pt[0]-pad_l)*(or_w/(sz-(pad_l+pad_r)))), int((pt[1]-pad_t)*(or_h/(sz-(pad_t+pad_b)))))
     
     
-def draw_bodypose(canvas, part_matches_map, pad):
+def draw_bodypose(canvas, part_matches_map, pad, IM_SIZE):
     H, W = canvas.shape[:2]
     stickwidth = 4
     if W>1000:
@@ -189,15 +179,16 @@ def draw_bodypose(canvas, part_matches_map, pad):
               [0,0,255], [0,0,255],
               [255,0,170], [255,0,170],
               [170,0,255], [170,0,255]]
-    
+  
     for j1, j2 in part_matches_map:
         if(len(part_matches_map[(j1, j2)])):
-            for pt1, pt2, _ in part_matches_map[(j1, j2)]:
-                pt1_cpy = get_transformed_pt(pt1, pad, H, W)
-                pt2_cpy = get_transformed_pt(pt2, pad, H, W)
+            
+            for pt1, pt2, part_conf in part_matches_map[(j1, j2)]:
+                pt1_cpy = get_transformed_pt(pt1, pad, H, W, IM_SIZE)
+                pt2_cpy = get_transformed_pt(pt2, pad, H, W, IM_SIZE)
                 cv2.circle(canvas, (int(pt1_cpy[0]), int(pt1_cpy[1])), stickwidth, colors[j1], thickness=-1)
                 cv2.circle(canvas, (int(pt2_cpy[0]), int(pt2_cpy[1])), stickwidth, colors[j2], thickness=-1)
-            
+
                 cur_canvas = canvas.copy()
                 X = [pt1_cpy[1], pt2_cpy[1]]
                 Y = [pt1_cpy[0], pt2_cpy[0]]
@@ -207,8 +198,8 @@ def draw_bodypose(canvas, part_matches_map, pad):
                 angle = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
                 polygon = cv2.ellipse2Poly((int(mY), int(mX)), (int(length / 2), stickwidth), int(angle), 0, 360, 1)
                 cv2.fillConvexPoly(cur_canvas, polygon, colors[j1])
-                #cv2.putText(cur_canvas, str(round(part_conf, 2)),(int(mY), int(mX)), font, 1, (0,0,0),3,cv2.LINE_AA)
-                
+                cv2.putText(cur_canvas, str(round(part_conf, 2)),(int(mY), int(mX)), font, 1, (0,0,0),3,cv2.LINE_AA)
+
                 canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
                 
     return canvas
@@ -409,6 +400,14 @@ def get_peaks(part_heatmap, nms_window):
     pad = nms_window+5
     padded_hm = np.pad(part_heatmap, pad_width=[(pad,pad),(pad,pad)], mode='constant', constant_values=0)
     coords = peak_local_max(padded_hm, min_distance=nms_window)
+    
+    if(len(coords)>30):
+        thresh = CONFIG.hm_op_threshold
+        while(len(coords)>30):
+            thresh = thresh + 0.1
+            padded_hm[padded_hm<thresh] = 0
+            coords = peak_local_max(padded_hm, min_distance=nms_window)
+        
     if(len(coords)):
         coords[:,[0, 1]] = coords[:,[1, 0]]
         coords = coords-pad
