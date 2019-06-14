@@ -1,0 +1,176 @@
+#import pylab
+#pylab.rcParams['figure.figsize'] = (8.0, 10.0)
+#from pycocotools.coco import COCO
+
+
+
+
+#q = Path('annotations/person_keypoints_train2014.json').open()
+#annotations_data = json.load(q)
+#82,783  images
+#185,316 annotations
+#{2: 7663,
+# 1: 17293,
+# 6: 1450,
+# 8: 1027,
+# 10: 869,
+# 5: 1959,
+# 11: 865,
+# 3: 4192,
+# 7: 1193,
+# 13: 956,
+# 14: 3268,
+# 4: 2757,
+# 12: 815,
+# 9: 858,
+# 15: 6,
+# 16: 1,
+# 18: 1,
+# 20: 1}
+
+'''
+    for ann in annotations_data['annotations']:
+    if 'segmentation' in ann:
+    del ann['segmentation']
+    if 'area' in ann:
+    del ann['area']
+    if 'bbox' in ann:
+    del ann['bbox']
+    if 'category_id' in ann:
+    del ann['category_id']
+    if ann['image_id'] not in im_id_to_keypoints:
+    im_id_to_keypoints[ann['image_id']] = []
+    
+    im_id_to_keypoints[ann['image_id']].append(ann.copy())
+    '''
+'''
+    counts = {}
+    no_keypoints = []
+    for im_id, ann in im_id_to_keypoints.items():
+    if(len(ann)==0):
+    no_keypoints.append(im_id)
+    
+    if len(ann) not in counts:
+    counts[len(ann)] = 1
+    else:
+    counts[len(ann)] += 1
+    '''
+'''counts = {2: 7663, 1: 17293, 6: 1450, 8: 1027, 10: 869, 5: 1959, 11: 865, 3: 4192, 7: 1193, 13: 956, 14: 3268, 4: 2757, 12: 815, 9: 858, 15: 6, 16: 1, 18: 1, 20: 1}'''
+
+'''
+    def show_img_annotations(coco_kps, im_id):
+    if(not im_id):
+    imgIds = coco_kps.getImgIds(catIds=[1]);
+    im_id = imgIds[np.random.randint(0,len(imgIds))]
+    
+    img = img_id_to_annotation[im_id]
+    print(img)
+    I = io.imread('train2014/'+img['file_name'])
+    plt.imshow(I); plt.axis('off')
+    ax = plt.gca()
+    anns = im_id_to_keypoints[im_id]
+    
+    for item in anns:
+    item['category_id'] = 1
+    
+    coco_kps.showAnns(anns)
+    
+    def plot_img(im_id):
+    img = coco_kps.loadImgs(im_id)[0]
+    I = io.imread(img['coco_url'])
+    plt.imshow(I); plt.axis('off')
+    
+    show_img_annotations(coco_kps, '')
+    '''
+
+#annFile = 'annotations/person_keypoints_train2014.json'
+#coco_kps=COCO(annFile)
+
+
+'''
+im_id = im_ids[np.random.randint(0, len(im_ids))]
+I = io.imread('train2014/'+img_id_to_image_info[im_id]['file_name'])
+anns = img_id_to_annotations[im_id]
+plt.imshow(I)
+keypoints = get_keypoints_from_annotations(anns)
+plot_heat_maps_from_annotations(I, keypoints)
+plot_paf_maps_from_annotations(I, keypoints)
+'''
+
+#good imids 391568, 498986, 40830
+#ds length = 45,174
+
+103775, 383329
+#np.random.randint(0,45174)
+
+#ds idx: 32520, 15369, 20535 
+
+
+
+'''
+@timeit
+def get_paf_masks_vectorized(img, keypoints, joint_pairs=BODY_PARTS, limb_width=5):
+    img = np.array(img)
+    h,w = img.shape[:2]
+    
+    PAF_BINARY_IND = np.zeros((len(BODY_PARTS), 2))
+    out_pafs = np.zeros((len(BODY_PARTS), 2, h, w))
+    n_person_part = np.zeros((len(BODY_PARTS), h, w))
+    
+    for person_id in range(keypoints.shape[0]):
+        keypoints_person = keypoints[person_id]
+        for i in range(len(BODY_PARTS)):
+            part = BODY_PARTS[i]
+            keypoint_1 = keypoints_person[part[0], :2]
+            keypoint_2 = keypoints_person[part[1], :2]
+
+            if(keypoints_person[part[0], 2] > 0 and keypoints_person[part[1], 2] > 0):
+                PAF_BINARY_IND[i,0], PAF_BINARY_IND[i,1] = 1, 1
+                part_line_segment = keypoint_2 - keypoint_1
+                l = np.linalg.norm(part_line_segment)
+                if l>1e-2:
+                    
+                    v = part_line_segment/l
+                    v_per = v[1], -v[0]
+                    x, y = np.meshgrid(np.arange(w), np.arange(h))
+                    dist_along_part = v[0]* (x - keypoint_1[0]) + v[1] * (y - keypoint_1[1])
+                    dist_per_part = np.abs(v_per[0] * (x - keypoint_1[0]) + v_per[1] * (y - keypoint_1[1]))
+                    mask1 = dist_along_part>=0
+                    mask2 = dist_along_part<=l
+                    mask3 = dist_per_part <=limb_width
+                    mask = mask1 & mask2 & mask3
+                    out_pafs[i,0] = out_pafs[i,0] + mask.astype('float32') * v[0]
+                    out_pafs[i,1] = out_pafs[i,1] + mask.astype('float32') * v[1]
+                    n_person_part += mask.astype('float32')
+    n_person_part = n_person_part.reshape(out_pafs.shape[0], 1, h, w)
+    out_pafs = out_pafs/(n_person_part + 1e-8)
+    return out_pafs, PAF_BINARY_IND
+'''
+
+'''
+h,w = np.array(im).shape[:2]
+limb_width = 5
+j1 = 15
+j2 = 13
+kps_j1 = kp[:,j1, :]
+kps_j2 = kp[:,j2, :]
+both_exist = np.logical_and(kps_j1[:,2], kps_j2[:,2])
+V = kps_j2[both_exist, :2] - kps_j1[both_exist, :2]
+norm = np.linalg.norm(V,axis=1,keepdims=True)
+valid_v = norm.ravel()>1e-2
+V[np.logical_not(valid_v)] = np.array([0,0])
+V = V/norm
+V_Perp = V.copy()
+V_Perp[:,[0,1]] = V_Perp[:,[1,0]]
+V_Perp[:,1] = -V_Perp[:,1] 
+
+Z, X, Y = np.meshgrid(np.arange(w), np.arange(h), np.arange(2))
+dist_along_part = V[:,0]* (X - kps_j1[:,0]) + V[:,1] * (Y - kps_j1[:,1])
+print(dist_along_part.shape)
+#dist_per_part = np.abs(V_Perp[:,0] * (X -kps_j1[:,0]) + V_Perp[:,1] * (Y - kps_j1[:,1]))
+mask1 = dist_along_part>=0
+#mask2 = dist_along_part<=norm.ravel()
+#mask3 = dist_per_part <=limb_width
+#mask = mask1 & mask2 & mask3
+#mask = np.amax(mask, axis=2)
+'''

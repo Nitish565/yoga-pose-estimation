@@ -8,7 +8,8 @@ COCO/annotations/
 COCO/train2017
 COCO/annotations 2/
 COCO/test/
-MPII/
+MPII/images/*
+MPII/pycocotools/
 pose-estimation-model/asana_gt/
 *.mp4
 *.avi
